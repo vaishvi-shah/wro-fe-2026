@@ -1,5 +1,5 @@
-# Souce Code
-====
+# Source Code
+---
 Main code for open challenge and obstacle challenge is directly in this folder
 
 Additionally, these folders contain
