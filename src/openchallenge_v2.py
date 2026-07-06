@@ -1,7 +1,3 @@
-
-
-
-
 # 1 ----------------------------------------------------------------------------------------
 
 
@@ -77,12 +73,11 @@ turning_time = time.time()  # timestamp of the last colour-line detection
 
 
 # defining colour ranges (HSV) used to mask each region of interest
-bottom_black = np.array([0, 0, 0])
-high_black = np.array([180, 200, 60])
-bottom_blue = np.array([100, 50, 60])
-high_blue = np.array([140, 255, 255])
-bottom_orange = np.array([10, 60, 100])
-high_orange = np.array([25, 255, 255])
+black_range = [[np.array([0, 0, 0]), np.array([180, 200, 60])]]
+
+blue_range = [[np.array([105, 140, 80]), np.array([135, 255, 255])]]
+
+orange_range = [[np.array([10, 60, 100]), np.array([25, 255, 255])]]
 
 
 # Function to navigate straight along the wall based on the number of black pixels on either wall
@@ -202,9 +197,9 @@ cap = picam2.capture_array("main")  # grab one frame to size the ROI frames belo
 
 # initializing frames: each Frame watches a fixed region of interest (ROI) for a colour mask.
 # left/right strips watch for the black wall; bottom strip watches for blue/orange turn markers.
-left_frame = Frame(cap, 0, 20, 60, 200,[bottom_black], [high_black])
-right_frame = Frame(cap, 300, 320, 60, 200,[bottom_black], [high_black])
-bottom_frame = Frame(cap, 100, 220, 200, 240,[bottom_blue], [high_blue], [bottom_orange], [high_orange])
+left_frame = Frame(cap, 0, 20, 60, 200, colour_range=black_range)
+right_frame = Frame(cap, 300, 320, 60, 200, colour_range=black_range)
+bottom_frame = Frame(cap, 100, 220, 200, 240, colour_range=[blue_range, orange_range])
 
 
 print("ENTERING THE WHILE LOOP")
@@ -228,20 +223,30 @@ while True:
         # A large enough patch of blue/orange counts as a line crossing.
         if bottom_area > 800:
             # print(time.time(), "--Detected turn color--")
-            turning_time = time.time()  # restart the cooldown window
-            turning = True # This is only used for debug purposes to indicate end if turn
-            if bottom_colour == 1:
-                blue_count += 1
-                print(f"BLUE: {blue_count}")
-                if not direction:
-                    direction = "CCL"  # lock turn direction on first colour seen
-            elif bottom_colour == 2:
-                orange_count += 1
-                print(f"ORANGE: {orange_count}")
-                if not direction:
-                    direction = "CWR"
 
-            pending_turn = True
+            # First detection ever: lock in direction AND the colour we care about.
+            # After this, the other colour is completely ignored for the rest of the run.
+            if not direction:
+                if bottom_colour == 1:
+                    direction = "CCL"   # blue seen first -> locked to blue/left forever
+                elif bottom_colour == 2:
+                    direction = "CWR"   # orange seen first -> locked to orange/right forever
+
+            # Only react to a detection if it matches the locked-in colour.
+            # (direction == "CCL" <-> blue, direction == "CWR" <-> orange)
+            if (direction == "CCL" and bottom_colour == 1) or (direction == "CWR" and bottom_colour == 2):
+                turning_time = time.time()  # restart the cooldown window
+                turning = True  # This is only used for debug purposes to indicate end of turn
+
+                if bottom_colour == 1:
+                    blue_count += 1
+                    print(f"BLUE: {blue_count}")
+                elif bottom_colour == 2:
+                    orange_count += 1
+                    print(f"ORANGE: {orange_count}")
+
+                pending_turn = True
+            # else: this is the "other" colour showing up after lock-in — ignored entirely.
     else:
         # Debug: mark end of turn windowq
         if time.time() - turning_time > 1.5: 
@@ -330,12 +335,3 @@ ser.close()
 
 
 cv2.destroyAllWindows()
-
-
-
-
-
-
-
-
-
