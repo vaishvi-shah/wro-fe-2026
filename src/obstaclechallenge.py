@@ -61,6 +61,7 @@ orange_range = [[np.array([10, 60, 100]), np.array([25, 255, 255])]]
 
 red1_range = [[np.array([0, 80, 40]), np.array([10, 255, 255])]]
 red2_range = [[np.array([170, 80, 40]), np.array([180, 255, 255])]]
+red_range = red1_range + red2_range   # one colour group, two HSV ranges (hue wraps at 0/180)
 
 green_range = [[np.array([40, 70, 40]), np.array([85, 255, 255])]]
 
@@ -168,10 +169,10 @@ cap = picam2.capture_array("main")  # grab one frame to size ROI frames below
 # initializing frames: each Frame watches a fixed region of interest (ROI) for a colour mask.
 # left/right strips watch black wall; bottom strip watches blue/orange turn markers;
 # middle frame watches red/green obstacle markers and black for collision detection.
-left_frame = Frame(cap, 0, 20, 60, 200, colour_range=black_range)
-right_frame = Frame(cap, 300, 320, 60, 200, colour_range=black_range)
+left_frame   = Frame(cap, 0, 20, 60, 200, colour_range=[black_range])
+right_frame  = Frame(cap, 300, 320, 60, 200, colour_range=[black_range])
 bottom_frame = Frame(cap, 100, 220, 200, 240, colour_range=[blue_range, orange_range])
-middle_frame = Frame(cap, 220, 420, 140, 340, colour_range=[red1_range, red2_range,green_range, black_range])
+middle_frame = Frame(cap, 220, 420, 140, 340, colour_range=[red_range, green_range, black_range])
 
 print("ENTERING THE WHILE LOOP")
 
