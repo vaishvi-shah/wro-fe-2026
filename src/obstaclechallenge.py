@@ -1,4 +1,3 @@
-
 # imports!
 import cv2
 import numpy as np
@@ -14,6 +13,8 @@ sensor = bno055.sensor
 bno055.load_calibration()      # apply saved accel/gyro/mag offsets if present
 controller = 1
 sent_steer = 0
+sent_speed = 0
+SPEED_SEND_THRESHOLD = 50  # min speed change (same units as REVERSE_SPEED/AVOID_SPEED/500) that forces a resend
 SHOW_VID = True                 # toggle live OpenCV preview window
 DEFAULT_STEER_ANGLE = 90        # neutral/straight steering angle, sent as 100 + this
 LINE_COUNT = 12                  # number of colour-line crossings before stopping
@@ -172,7 +173,7 @@ cap = picam2.capture_array("main")  # grab one frame to size ROI frames below
 left_frame   = Frame(cap, 0, 20, 60, 200, colour_range=[black_range])
 right_frame  = Frame(cap, 300, 320, 60, 200, colour_range=[black_range])
 bottom_frame = Frame(cap, 100, 220, 200, 240, colour_range=[blue_range, orange_range])
-middle_frame = Frame(cap, 220, 420, 140, 340, colour_range=[red_range, green_range, black_range])
+middle_frame = Frame(cap, 100, 220, 100, 200, colour_range=[red_range, green_range, black_range])
 
 print("ENTERING THE WHILE LOOP")
 
@@ -309,9 +310,10 @@ while True:
 
         cv2.imshow("Video Frame", cap)
 
-    if abs(sent_steer - steering) >= 3:
+    if abs(sent_steer - steering) >= 3 or abs(sent_speed - speed) >= SPEED_SEND_THRESHOLD:
         ser.write(f"{steering:.0f}{speed+1000}{controller}\n".encode())  # send steering+speed to microcontroller
         sent_steer = steering
+        sent_speed = speed
         ser.flush()
     time.sleep(0.01)
     if cv2.waitKey(1) & 0xFF == ord('q'):  # manual quit key also sends stop command
