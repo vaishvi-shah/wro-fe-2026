@@ -199,8 +199,7 @@ cap = picam2.capture_array("main")  # grab one frame to size the ROI frames belo
 # left/right strips watch for the black wall; bottom strip watches for blue/orange turn markers.
 left_frame = Frame(cap, 0, 20, 60, 200, colour_range=black_range)
 right_frame = Frame(cap, 300, 320, 60, 200, colour_range=black_range)
-bottom_frame = Frame(cap, 100, 220, 200, 240, colour_range=[blue_range, orange_range])
-
+bottom_frame = Frame(cap, 100, 220, 200, 240, colour_range=blue_range + orange_range)
 
 print("ENTERING THE WHILE LOOP")
 
@@ -215,8 +214,8 @@ while True:
     # Only look for a new turn-colour line if we're outside the "just turned" cooldown window.
     if not turning:
         bottom_frame.update(cap)
-        blue_contours, orange_contours = bottom_frame.find_contours(colour=(255,255,0), colour2=(0,127,255))
-        bottom_area, bottom_colour = bottom_frame.get_areas(blue_contours, orange_contours) # if bottom_colour = 1 = blue if bottom_colour = 2 = orange
+        blue_contours, other = bottom_frame.find_contours(colour=(255, 255, 0), colour2=(0, 127, 255))
+        orange_contours = other[0]        bottom_area, bottom_colour = bottom_frame.get_areas(blue_contours, orange_contours) # if bottom_colour = 1 = blue if bottom_colour = 2 = orange
         # print("GOT THE AREAS")
 
 
