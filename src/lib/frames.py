@@ -5,25 +5,34 @@ import time
 class Frame:
     def __init__(self, img, x1, x2, y1, y2, colour_range):
         """
-        colour_range: FLAT list of [low, high] np.array pairs, one pair per
-        colour, e.g.
-            black_range  = [[low, high]]                  # 1 colour
-            multi_range  = blue_range + orange_range       # 2 colours (concat!)
-            red_range    = [[low1, high1], [low2, high2]]  # 1 colour, 2 ranges (is_red=True)
+        colour_range: list of colour GROUPS. Each group is a list of one or
+        more [low, high] np.array range pairs that all represent the SAME
+        colour (multiple ranges per group are OR'd together — this is how
+        hue-wraparound colours like red are handled, no special-casing needed).
+
+        Examples:
+            black_range = [[low, high]]                 # 1 range
+            colour_range=[black_range]                   # 1 group, 1 colour
+
+            colour_range=[blue_range, orange_range]      # 2 groups, 2 colours
+
+            red_range = red1_range + red2_range           # merge two ranges
+            colour_range=[red_range, green_range, black_range]  # 3 groups
         """
         self.img = img
         self.x1, self.x2, self.y1, self.y2 = x1, x2, y1, y2
 
-        self.low = []
-        self.high = []
-        for i, pair in enumerate(colour_range):
-            if len(pair) != 2:
-                raise ValueError(
-                    f"colour_range[{i}] must be [low, high], got {pair!r} "
-                    "(check you didn't double-nest a range list)"
-                )
-            self.low.append(pair[0])
-            self.high.append(pair[1])
+        self.groups = []
+        for gi, group in enumerate(colour_range):
+            pairs = []
+            for ri, pair in enumerate(group):
+                if len(pair) != 2:
+                    raise ValueError(
+                        f"colour_range[{gi}][{ri}] must be [low, high], got "
+                        f"{pair!r} — check your range isn't double/under-nested"
+                    )
+                pairs.append((pair[0], pair[1]))
+            self.groups.append(pairs)
 
         self.frame = 0
         self.mask = 0
@@ -42,43 +51,39 @@ class Frame:
         self.frame_gaussed = cv2.GaussianBlur(self.frame, (1, 1), cv2.BORDER_DEFAULT)
         self.hsv = cv2.cvtColor(self.frame_gaussed, cv2.COLOR_BGR2HSV)
 
-    def find_contours(self, is_red=False, colour=(0, 0, 255), colour2=(0, 255, 0)):
+    def find_contours(self, colour=(0, 0, 255), colour2=(0, 255, 0),
+                       colour3=(255, 0, 0), colour4=(255, 255, 0), colour5=(0, 255, 255)):
         """
-        Primary colour = index 0 (or indices 0+1 merged if is_red=True, same
-        as before). Every remaining colour in self.low/self.high is treated
-        as an "other" colour and returned as a list, in order.
+        Finds contours for EVERY colour group given at init, in order.
+        Each group's ranges are OR'd into one mask before finding contours
+        (this is what makes red's two hue ranges act as a single colour).
 
-        colour2 can be a single BGR tuple (all extra colours drawn the same)
-        or a list of tuples, one per extra colour.
+        Returns:
+            - a single contours list if there's only 1 group (e.g. left/right walls)
+            - a tuple of contours lists, one per group, if there are 2+ groups
+              (so `a, b = frame.find_contours()` / `a, b, c = ...` just works)
         """
-        self.mask = cv2.inRange(self.hsv, self.low[0], self.high[0])
-        start_idx = 1
-        if is_red:
-            mask1 = cv2.inRange(self.hsv, self.low[1], self.high[1])
-            self.mask = cv2.bitwise_or(self.mask, mask1)
-            start_idx = 2
+        draw_colours = [colour, colour2, colour3, colour4, colour5]
+        results = []
 
-        self.contours, _ = cv2.findContours(
-            self.mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE
-        )
-        if self.contours:
-            cv2.drawContours(self.frame, self.contours, -1, colour, 2)
+        for gi, pairs in enumerate(self.groups):
+            mask = None
+            for low, high in pairs:
+                m = cv2.inRange(self.hsv, low, high)
+                mask = m if mask is None else cv2.bitwise_or(mask, m)
 
-        draw_colours = colour2 if isinstance(colour2, list) else [colour2]
+            contours, _ = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
 
-        other_contours = []
-        for j, x in enumerate(range(start_idx, len(self.low))):
-            mask2 = cv2.inRange(self.hsv, self.low[x], self.high[x])
-            contours2, _ = cv2.findContours(
-                mask2, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE
-            )
-            other_contours.append(contours2)
-            if contours2:
-                cv2.drawContours(
-                    self.frame, contours2, -1, draw_colours[j % len(draw_colours)], 2
-                )
+            if gi == 0:
+                self.mask = mask
+                self.contours = contours
 
-        return self.contours, other_contours
+            if contours:
+                cv2.drawContours(self.frame, contours, -1, draw_colours[gi % len(draw_colours)], 2)
+
+            results.append(contours)
+
+        return results[0] if len(results) == 1 else tuple(results)
 
     def add_lines(self, colour=1):
         if time.time() - self.last_seen > self.last_seen_timer:
@@ -95,15 +100,20 @@ class Frame:
             return self.line_counter2
         return 0
 
-    def get_areas(self, contours=(), contours2=()):
-        area1 = sum(cv2.contourArea(cnt) for cnt in contours) if contours else 0
-        area2 = sum(cv2.contourArea(cnt) for cnt in contours2) if contours2 else 0
+    def get_areas(self, *contour_sets):
+        """
+        Accepts however many contour sets you have (one per colour group)
+        and returns (biggest_total_area, index_of_biggest) where index is
+        1-based (1 = first set passed in, 2 = second, ...), matching the
+        old 1=blue/2=orange, 1=red/2=green/3=black conventions.
+        Returns (0, None) if everything is empty/zero.
+        """
+        areas = [sum(cv2.contourArea(c) for c in contours) if contours else 0
+                  for contours in contour_sets]
 
-        biggest = max(area1, area2)
-        if biggest == 0:
-            colour = None
-        elif biggest == area1:
-            colour = 1
-        else:
-            colour = 2
+        if not areas:
+            return 0, None
+
+        biggest = max(areas)
+        colour = None if biggest == 0 else areas.index(biggest) + 1
         return biggest, colour
