@@ -14,13 +14,13 @@ Camera directly fights steering every loop.
 Gyro also directly fights steering every loop.
 Behavior:
 More reactive to sensor noise.
-Two controllers “compete” and are averaged.
+Two controllers "compete" and are averaged.
 
 
 Core idea:
 
 
-“Both sensors directly output steering, then we mix them.”
+"Both sensors directly output steering, then we mix them."
 
 
 '''
@@ -49,7 +49,7 @@ SAFE_TURN_AREA = 2000           # max black area on the side of a turn before we
 KP = 0.05       # camera proportional gain (wall pixel area difference)
 KD = 0.001      # (unused currently, reserved for derivative term)
 KP_GYRO = 0.5   # gyro proportional gain (heading error in degrees)
-
+WALL_OFFSET_AVOIDING = 1000  # extra black area added to the side of a red/green obstacle to bias steering away from it
 
 ser = serial.Serial('/dev/ttyACM0', 115200, timeout=1)  # serial link to the steering/speed microcontroller
 time.sleep(2)  # let the serial connection settle before writing
@@ -62,7 +62,7 @@ pending_turn = False  # true if a turn is pending (colour line seen, but not yet
 blue_count = 0      # number of blue line crossings seen
 orange_count = 0    # number of orange line crossings seen
 direction = ''      # locked turn direction once first colour is seen ("CWR" or "CCWL")
-
+avaiding = False      # true while avoiding a red/green obstacle    
 
 frame_count = 0      # frames seen since last FPS sample
 fps = 0
@@ -84,6 +84,20 @@ orange_range = [
 
 black_range = [
     [np.array([0, 0, 0]), np.array([180, 200, 60])]
+]
+
+# Red wraps around the 0/180 hue boundary in OpenCV's HSV space, so it needs
+# two ranges (low end + high end) grouped together as one colour.
+red1_range = [
+    [np.array([0, 80, 40]), np.array([10, 255, 255])]
+]
+red2_range = [
+    [np.array([170, 80, 40]), np.array([180, 255, 255])]
+]
+red_range = red1_range + red2_range   # one colour group, two HSV ranges (hue wraps at 0/180)
+
+green_range = [
+    [np.array([40, 70, 40]), np.array([85, 255, 255])]
 ]
 
 # Function to navigate straight along the wall based on the number of black pixels on either wall
@@ -143,25 +157,13 @@ def angle_error(current, target):
     error = (current - target + 180) % 360 - 180
     return error    
 
-def navigate_wall(gyro_heading, desired_heading=0):
+def navigate_wall(gyro_heading, desired_heading=0, KP=0.05, KP_GYRO=0.5, left_area=0, right_area=0):
     """
     Blends two steering estimates into one value:
       1. Gyro term: proportional correction on heading error (gyro_heading vs desired_heading).
       2. Camera term: proportional correction on left/right wall pixel area difference (original logic).
     Final steering = 70% gyro term + 30% camera term, clamped to servo range [30, 150].
     """
-    # Refresh the side frames with the latest camera capture and re-run the
-    # colour mask + contour detection so we know how much "wall" each side sees.
-    left_frame.update(cap)
-    right_frame.update(cap)
-
-
-    left_contours = left_frame.find_contours()
-    right_contours = right_frame.find_contours()
-
-
-    left_area, _ = left_frame.get_areas(left_contours)
-    right_area, _ = right_frame.get_areas(right_contours)
 
 
     # Camera term (unchanged from original): more black pixels on one side
@@ -206,15 +208,87 @@ left_frame = Frame(cap, 0, 20, 60, 200, colour_range=[black_range])
 right_frame = Frame(cap, 300, 320, 60, 200, colour_range=[black_range])
 bottom_frame = Frame(cap, 100, 220, 200, 240, colour_range=[blue_range, orange_range])
 
+# Middle ROI: spans almost the full width (just inside the left/right wall
+# strips at x=20 and x=300), sits just above the bottom turn-marker strip
+# (which starts at y=200), and runs tall without covering the full frame
+# height (starts at y=20 rather than y=0). Watches for red, green, and black.
+middle_frame = Frame(cap, 25, 295, 20, 195, colour_range=[red_range, green_range, black_range])
+
 print("ENTERING THE WHILE LOOP")
 
 
 while True:
     cap = picam2.capture_array("main")     # latest camera frame
     gyro = bno055.get_heading()            # latest raw heading (0-359 deg), or None if unavailable
-    steering = 100 + navigate_wall(gyro, desired_heading)  # blended gyro+camera steering, offset for serial protocol
-    speed =800
+    speed = 800
 
+
+    # CHECKING FOR OBSTACLES -------------------
+
+    middle_frame.update(cap)
+    mid_red_contours, mid_green_contours, mid_black_contours = middle_frame.find_contours()
+
+    biggest_mid_area, biggest_mid_colour = middle_frame.get_areas(
+        mid_red_contours,
+        mid_green_contours,
+        mid_black_contours
+    )
+
+    if biggest_mid_colour is not None:
+        colour_names = {
+            1: "RED",
+            2: "GREEN",
+            3: "BLACK"
+        }
+
+        cv2.putText(
+            cap,
+            f"Mid: {colour_names[biggest_mid_colour]} ({biggest_mid_area:.0f})",
+            (90, 50),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.5,
+            (255, 255, 255),
+            1,
+        )
+
+        avoiding = True
+        avoiding_time = time.time()
+
+
+    # GETTING STEERING CALCULATION -------------------
+
+    # Refresh the side frames with the latest camera capture and re-run the
+    # colour mask + contour detection so we know how much "wall" each side sees.
+    
+    
+    left_frame.update(cap)
+    right_frame.update(cap)
+
+
+    left_contours = left_frame.find_contours()
+    right_contours = right_frame.find_contours()
+
+
+    left_area, _ = left_frame.get_areas(left_contours)
+    right_area, _ = right_frame.get_areas(right_contours)
+
+    # IF AVOIDING, BIAS STEERING AWAY FROM THE OBSTACLE (RED/GREEN) FOR 1.5 SECONDS
+
+    if avoiding and time.time() - avoiding_time < 1.5:
+        if biggest_mid_colour == 1:  # red
+            left_area += WALL_OFFSET_AVOIDING  # bias steering left
+        elif biggest_mid_colour == 2:  # green
+            right_area += WALL_OFFSET_AVOIDING  # bias steering right
+    elif avoiding and time.time() - avoiding_time >= 1.5:
+        avoiding = False
+
+    # STEERING CALCULATION -------------------
+
+    steering = 100 + navigate_wall(gyro, desired_heading, left_area=left_area, right_area=right_area)  # blended gyro+camera steering, offset for serial protocol
+
+
+
+    # CHECKING FOR TURN MARKERS -------------------
 
     # Only look for a new turn-colour line if we're outside the "just turned" cooldown window.
     if not turning:
@@ -283,6 +357,8 @@ while True:
                 pending_turn = False
 
 
+    # Middle ROI: continuously scan for red, green, and black. Find whichever
+    # single contour is largest across the three colours and show that colour.
 
 
     # Once either colour has been crossed LINE_COUNT times, start the stop sequence.
@@ -292,7 +368,7 @@ while True:
         stop = True
    
     if stop:
-        if time.time() - stop_time > 4                                             :
+        if time.time() - stop_time > 2                                             :
             speed = 0000
             ser.write(f"19020000\n".encode())  # send the fixed stop command
             ser.flush()

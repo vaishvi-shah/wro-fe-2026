@@ -51,23 +51,24 @@ class Frame:
         self.frame_gaussed = cv2.GaussianBlur(self.frame, (1, 1), cv2.BORDER_DEFAULT)
         self.hsv = cv2.cvtColor(self.frame_gaussed, cv2.COLOR_BGR2HSV)
 
-    def find_contours(self, colour=(0, 0, 255), colour2=(0, 255, 0),
-                       colour3=(255, 0, 0), colour4=(255, 255, 0), colour5=(0, 255, 255)):
+    def find_contours(self):
         """
         Finds contours for EVERY colour group given at init, in order.
         Each group's ranges are OR'd into one mask before finding contours
         (this is what makes red's two hue ranges act as a single colour).
 
+        All detected contours are drawn in yellow.
+
         Returns:
             - a single contours list if there's only 1 group (e.g. left/right walls)
             - a tuple of contours lists, one per group, if there are 2+ groups
-              (so `a, b = frame.find_contours()` / `a, b, c = ...` just works)
+            (so `a, b = frame.find_contours()` / `a, b, c = ...` just works)
         """
-        draw_colours = [colour, colour2, colour3, colour4, colour5]
         results = []
 
         for gi, pairs in enumerate(self.groups):
             mask = None
+
             for low, high in pairs:
                 m = cv2.inRange(self.hsv, low, high)
                 mask = m if mask is None else cv2.bitwise_or(mask, m)
@@ -79,7 +80,7 @@ class Frame:
                 self.contours = contours
 
             if contours:
-                cv2.drawContours(self.frame, contours, -1, draw_colours[gi % len(draw_colours)], 2)
+                cv2.drawContours(self.frame, contours, -1, (0, 255, 255), 2)  # Yellow (BGR)
 
             results.append(contours)
 
