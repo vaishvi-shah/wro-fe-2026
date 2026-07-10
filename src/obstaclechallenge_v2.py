@@ -81,8 +81,8 @@ MID_ROI_AREA = MID_ROI_W * MID_ROI_H         # 47250 px = full ROI
 # The obstacle can take up AT MOST 3/7 of the camera, and (per your setup) that only
 # happens once the robot has actually TOUCHED it. So an area at/above 3/7 == contact.
 CONTACT_AREA = int(MID_ROI_AREA * 3 / 7)     # ~20250 px -> "we've hit it / are dragging it"
-CLOSE_AREA   = int(MID_ROI_AREA * 0.18)      # ~8500 px  -> obstacle very close: dodge hard
-OBSTACLE_ENTER_AREA = 400     # min red/green area to START reacting (filters noise)
+CLOSE_AREA   = int(MID_ROI_AREA * 0.10)      # ~4700 px  -> swing ramp reaches FULL by here
+OBSTACLE_ENTER_AREA = 250     # min red/green area to START reacting (lower = react sooner)
 OBSTACLE_EXIT_AREA  = 150     # area below which the sign is considered "not seen" (hysteresis)
 OBSTACLE_LATE_AREA  = CLOSE_AREA   # first sighting already this big -> no run-up -> dodge hard
 EDGE_MARGIN = 30              # px from ROI edge; a chunky sign first seen this close to the
@@ -97,7 +97,8 @@ TARGET_OFFSET_GREEN = 195    # green -> hold toward right of ROI -> robot dodges
 LOST_FRAMES_ENTER = 3        # "not seen" frames: follow_color -> lost_color  (ref: >2)
 PASS_FRAMES_ENTER = 7        # "not seen" frames: lost_color  -> pass_color   (ref: >6)
 SEARCH_BIAS_DEG   = 12       # heading bias toward the obstacle's side while 'lost' (ref: 15)
-HARD_SWING_DEG    = 35       # immediate dodge swing in 'dodge_hard'
+BASE_SWING_DEG    = 18       ### NEW: swing applied the INSTANT a block is seen (far away)
+HARD_SWING_DEG    = 40       # swing once the block is close / seen late (ramp top end)
 PASS_SWING_DEG    = 35       # cut-back swing toward the lane in 'pass_color' (ref: 35)
 PASS_EXIT_TOL_DEG = 12       # |heading err to lane| below this ends pass_color (ref: <12)
 PASS_MAX_TIME     = 2.0      # failsafe cap for the pass swing
@@ -236,14 +237,17 @@ def contour_centroid_x(contours):
     return M["m10"] / M["m00"]
 
 
-def navigate_wall(gyro_heading, desired_heading=0, left_area=0, right_area=0, obstacle_bias=0):
+def navigate_wall(gyro_heading, desired_heading=0, left_area=0, right_area=0,
+                  obstacle_bias=0, avoiding=False):
     """
     Blends two steering estimates into one value:
       1. Gyro term: proportional correction on heading error (gyro vs desired).
       2. Camera term: proportional correction on left/right wall pixel area difference.
-    Then adds the obstacle pixel bias, applies a soft wall-safety clamp, and clamps
-    to the servo range [30, 150]. (Wall areas are computed once in the main loop and
-    passed in, so the reverse-escape logic and this function agree on what they see.)
+
+    When avoiding == False this is IDENTICAL to your original wall-follower: obstacle_bias
+    is 0, the wall clamp is skipped, and it returns the plain 70/30 gyro+camera blend. The
+    extra safety clamp only engages while a dodge is in progress, so with no obstacles the
+    robot follows the wall on gyro+camera exactly like the working copy.
     """
     # Camera term: more black on one side pushes steering away from that side.
     cam_steer = DEFAULT_STEER_ANGLE + KP * (left_area - right_area)
@@ -257,14 +261,14 @@ def navigate_wall(gyro_heading, desired_heading=0, left_area=0, right_area=0, ob
 
     steering_value = GYRO_WEIGHT * gyro_steer + CAM_WEIGHT * cam_steer + obstacle_bias
 
-    ### CHANGED: soft wall clamp now guards the TOTAL command (the obstacle bias and the
-    # heading swings can both push toward a wall). If a wall is already close we refuse to
-    # steer more than 10 units further into it. (Hard wall contact is handled by the reverse
-    # escape in the main loop; this just keeps us off the wall in normal dodging.)
-    if left_area > SAFE_TURN_AREA:
-        steering_value = max(steering_value, DEFAULT_STEER_ANGLE - 10)   # cap leftward steer
-    if right_area > SAFE_TURN_AREA:
-        steering_value = min(steering_value, DEFAULT_STEER_ANGLE + 10)   # cap rightward steer
+    ### CHANGED: the wall clamp ONLY runs while avoiding, so normal wall-following is
+    # untouched. During a dodge the heading swing / pixel bias could push toward a wall,
+    # so there we refuse to steer more than 10 units further into an already-close wall.
+    if avoiding:
+        if left_area > SAFE_TURN_AREA:
+            steering_value = max(steering_value, DEFAULT_STEER_ANGLE - 10)   # cap left steer
+        if right_area > SAFE_TURN_AREA:
+            steering_value = min(steering_value, DEFAULT_STEER_ANGLE + 10)   # cap right steer
 
     steering_value = max(30, min(150, steering_value))  # clamp to servo range
 
@@ -430,14 +434,19 @@ while True:
             obstacle_steer_bias = KP_OBSTACLE * (obs_x - target)
         # else keep last bias: one dropped frame shouldn't snap us straight into the block.
 
-        if avoid_state == 'follow_color':
-            avoid_heading_offset = 0
-            if current_area > CLOSE_AREA:            # closing fast -> commit to a hard dodge
-                avoid_state = 'dodge_hard'
-                print("-- OBSTACLE CLOSE -> DODGE HARD --")
-        else:  # dodge_hard: full heading swing toward the pass side + pixel bias, slower
-            avoid_heading_offset = dodge_sign(avoiding_colour) * HARD_SWING_DEG
-            speed = SPEED_AVOID
+        ### CHANGED: commit to the dodge from the FIRST frame the block is seen, instead of
+        # gently centering on it and only swinging once it's close (that was the "avoid too
+        # late -> bump -> drag" bug). The heading swing starts at BASE_SWING_DEG far away and
+        # ramps to HARD_SWING_DEG as the block fills the ROI, so the fast bot begins moving
+        # over immediately and is already clear by the time it reaches the block.
+        prox = min(1.0, current_area / CLOSE_AREA)      # 0 (far) .. 1 (close/at CLOSE_AREA)
+        if avoid_state == 'dodge_hard':
+            prox = 1.0                                   # late sighting -> full swing at once
+        swing = BASE_SWING_DEG + (HARD_SWING_DEG - BASE_SWING_DEG) * prox
+        avoid_heading_offset = dodge_sign(avoiding_colour) * swing
+        speed = SPEED_AVOID
+        if avoid_state == 'follow_color' and current_area > CLOSE_AREA:
+            avoid_state = 'dodge_hard'                   # bookkeeping: it's now a close dodge
 
         # Exit follow/dodge only when it leaves view (we're beside it). Stay committed via
         # lost_color rather than snapping straight and clipping it with the rear wheel.
@@ -486,9 +495,10 @@ while True:
     # ---- STEERING: swings are offsets on top of desired_heading, so they COMPOSE with
     #      the 90-degree corner turns applied by turn(). ---------------------------------- ### CHANGED
     effective_heading = (desired_heading + avoid_heading_offset) % 360
+    avoiding_now = avoid_state != 'no_color'      ### NEW: only clamp/bias while avoiding
     steering = 100 + navigate_wall(gyro, effective_heading,
                                    left_area=left_area, right_area=right_area,
-                                   obstacle_bias=obstacle_steer_bias)
+                                   obstacle_bias=obstacle_steer_bias, avoiding=avoiding_now)
 
     # ================================================================================
     # PRIORITY 3: TURN DETECTION + EXECUTION (runs EVERY frame -> never skipped by a dodge)
