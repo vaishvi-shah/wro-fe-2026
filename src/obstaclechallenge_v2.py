@@ -49,7 +49,7 @@ SAFE_TURN_AREA = 2000           # max black area on the side of a turn before we
 KP = 0.05       # camera proportional gain (wall pixel area difference)
 KD = 0.001      # (unused currently, reserved for derivative term)
 KP_GYRO = 0.5   # gyro proportional gain (heading error in degrees)
-
+avoiding = False
 
 ser = serial.Serial('/dev/ttyACM0', 115200, timeout=1)  # serial link to the steering/speed microcontroller
 time.sleep(2)  # let the serial connection settle before writing
@@ -85,6 +85,19 @@ orange_range = [
 black_range = [
     [np.array([0, 0, 0]), np.array([180, 200, 60])]
 ]
+
+red1_range = [
+    [np.array([0, 80, 40]), np.array([10, 255, 255])]
+]
+red2_range = [
+    [np.array([170, 80, 40]), np.array([180, 255, 255])]
+]
+red_range = red1_range + red2_range   # one colour group, two HSV ranges (hue wraps at 0/180)
+
+green_range = [
+    [np.array([40, 70, 40]), np.array([85, 255, 255])]
+]
+
 
 # Function to navigate straight along the wall based on the number of black pixels on either wall
 # if more black on a wall, turn steering the other way proportional to difference of black pixels
@@ -205,6 +218,9 @@ cap = picam2.capture_array("main")  # grab one frame to size the ROI frames belo
 left_frame = Frame(cap, 0, 20, 60, 200, colour_range=[black_range])
 right_frame = Frame(cap, 300, 320, 60, 200, colour_range=[black_range])
 bottom_frame = Frame(cap, 100, 220, 200, 240, colour_range=[blue_range, orange_range])
+middle_frame = Frame(cap, 40, 280, 60, 180, colour_range=[red_range, green_range, black_range])
+
+
 
 print("ENTERING THE WHILE LOOP")
 
@@ -214,6 +230,17 @@ while True:
     gyro = bno055.get_heading()            # latest raw heading (0-359 deg), or None if unavailable
     steering = 100 + navigate_wall(gyro, desired_heading)  # blended gyro+camera steering, offset for serial protocol
     speed =800
+
+
+    if not avoiding:
+        middle_frame.update(cap)
+        red_contours, green_contours  = middle_frame.find_contours()
+        middle_area, middle_colour = middle_frame.get_areas(red_contours, green_contours) # 1 = red, 2 = green
+        
+        if middle_area > 100 and middle_colour == 1:
+            steering += 20
+        elif middle_area > 100 and middle_colour == 2:
+            steering -= 20
 
 
     # Only look for a new turn-colour line if we're outside the "just turned" cooldown window.
