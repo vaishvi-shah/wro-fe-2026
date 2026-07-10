@@ -62,7 +62,9 @@ pending_turn = False  # true if a turn is pending (colour line seen, but not yet
 blue_count = 0      # number of blue line crossings seen
 orange_count = 0    # number of orange line crossings seen
 direction = ''      # locked turn direction once first colour is seen ("CWR" or "CCWL")
-avaiding = False      # true while avoiding a red/green obstacle    
+avoiding = False      # true while avoiding a red/green obstacle
+avoiding_time = time.time()  # timestamp of the last red/green detection
+avoiding_colour = None  # colour (1=red, 2=green) that triggered the current avoidance window
 
 frame_count = 0      # frames seen since last FPS sample
 fps = 0
@@ -251,8 +253,12 @@ while True:
             1,
         )
 
-        avoiding = True
-        avoiding_time = time.time()
+        # Only red/green obstacles should start (or refresh) an avoidance
+        # window — black is just the wall/track and shouldn't trigger this.
+        if biggest_mid_colour in (1, 2):
+            avoiding = True
+            avoiding_time = time.time()
+            avoiding_colour = biggest_mid_colour
 
 
     # GETTING STEERING CALCULATION -------------------
@@ -273,14 +279,22 @@ while True:
     right_area, _ = right_frame.get_areas(right_contours)
 
     # IF AVOIDING, BIAS STEERING AWAY FROM THE OBSTACLE (RED/GREEN) FOR 1.5 SECONDS
+    # navigate_wall steers AWAY from whichever side has more area (see cam_steer:
+    # 90 + KP*(left_area - right_area)), so to steer LEFT we add fake area to the
+    # RIGHT side, and to steer RIGHT we add fake area to the LEFT side.
+    # Uses avoiding_colour (captured once, when the obstacle was first seen)
+    # rather than re-reading biggest_mid_colour each frame, so the bias holds
+    # for the full 1.5s window even after the sign stops being the largest
+    # contour in the middle ROI (e.g. black overtakes it as it passes by).
 
     if avoiding and time.time() - avoiding_time < 1.5:
-        if biggest_mid_colour == 1:  # red
-            left_area += WALL_OFFSET_AVOIDING  # bias steering left
-        elif biggest_mid_colour == 2:  # green
-            right_area += WALL_OFFSET_AVOIDING  # bias steering right
+        if avoiding_colour == 1:  # red -> steer left, pass on the right
+            right_area += WALL_OFFSET_AVOIDING
+        elif avoiding_colour == 2:  # green -> steer right, pass on the left
+            left_area += WALL_OFFSET_AVOIDING
     elif avoiding and time.time() - avoiding_time >= 1.5:
         avoiding = False
+        avoiding_colour = None
 
     # STEERING CALCULATION -------------------
 
