@@ -56,6 +56,7 @@ class LCD_1inch44(framebuf.FrameBuffer):
         self.red   = 0xF800
         self.blue  = 0x07E0
         self.green = 0x001F
+        
 
     def write_cmd(self, cmd):
         self.dc(0)
@@ -117,6 +118,7 @@ pwm.freq(1000)
 pwm.duty_u16(65535)
 
 LCD = LCD_1inch44()
+LCD.init_display()
 poll = uselect.poll()
 poll.register(sys.stdin, uselect.POLLIN)
 
@@ -124,9 +126,9 @@ poll.register(sys.stdin, uselect.POLLIN)
 # BUTTONS
 # -------------------------
 
-btn_open = Pin(2, Pin.IN, Pin.PULL_UP)
+btn_stop = Pin(2, Pin.IN, Pin.PULL_UP)
 btn_obstacle = Pin(3, Pin.IN, Pin.PULL_UP)
-btn_stop = Pin(17, Pin.IN, Pin.PULL_UP)
+btn_open = Pin(17, Pin.IN, Pin.PULL_UP)
 btn_meme = Pin(15, Pin.IN, Pin.PULL_UP)
 
 # Servo initialization
@@ -149,27 +151,6 @@ def show_message(msg, color):
     LCD.text(msg, 10, 60, LCD.white)
 
     LCD.show()
-
-def show_color(msg):
-
-    msg = msg.strip()
-
-    if msg == "green":
-        LCD.fill(LCD.blue)
-        LCD.text("GREEN", 40, 60, LCD.white)
-
-    elif msg == "red":
-        LCD.fill(LCD.red)
-        LCD.text("RED", 45, 60, LCD.white)
-
-    else:
-        LCD.fill(LCD.black)
-        LCD.text("READY", 20, 60, LCD.white)
-
-    LCD.show()
-
-
-show_color("none")
 
 def motor_forward(speed):
     """Moves the motor forward at a specific speed (0 to 100)."""
@@ -196,7 +177,7 @@ def motor_stop():
     print("Motor Stopped")
     
 
-def handle_motor_commands(direction, speed_str, angle_str):
+def handle_motor_commands(direction, speed_str, angle_str, line, state):
     try:
         speed = int(speed_str)
         angle = int(angle_str)
@@ -212,48 +193,53 @@ def handle_motor_commands(direction, speed_str, angle_str):
     except ValueError:
         print("Data conversion error")
 
+def clear_screen():
+    LCD.fill(LCD.black)
+    LCD.show()
+    
+
+def btn_open_close(ser_value, speed_value, direc, line_col, sta ):
+    clear_screen()
+    
+    LCD.text("SerV: " + ser_value, 10, 10, LCD.white)
+    LCD.text("SpV: " + speed_value, 10, 30, LCD.white)
+    LCD.text("Dir:" + direc, 10, 50, LCD.white)
+    LCD.text("LC:" + line_col, 10, 70, LCD.white)
+    LCD.text("St:" + sta, 10, 90, LCD.white)
+                    
+    LCD.show()
+    time.sleep(0.3)
+
+show_message("Welcome!!!", LCD.green)
 while True:
 
     # -------------------------
     # OPEN BUTTON
     # -------------------------
-    if btn_open.value() == 0:
-        
-        print("Move Forward")
-        
-#         motor_forward(70)
-        
-        show_message("Move Forward", LCD.green)
-        
+    if btn_open.value() == 0:     
+        show_message("Open", LCD.green)
+        print("Open")        
         time.sleep(0.3)
             
-
-
-
     # -------------------------
     # OBSTACLE BUTTON
     # -------------------------
     elif btn_obstacle.value() == 0:
-
-        print("Move Backward")
-
-#         motor_backward(70)
         
-        show_message("Move Backward", LCD.blue)
-
-        time.sleep(0.3)
+        show_message("Obstacle", LCD.green)
+        print("Obstacle")
+        time.sleep(1)
+        
 
     # -------------------------
     # STOP BUTTON
     # -------------------------
     elif btn_stop.value() == 0:
-
-        print("Stop")
 #         motor_stop()
  
         show_message("STOP", LCD.red)
-
-
+        #LCD.Paint_DrawLine(0, 10, 127, 10, LCD.black, 2, 0)
+        print("Stop")
         time.sleep(0.3)
             
     # -------------------------
@@ -276,19 +262,22 @@ while True:
     
     poll = uselect.poll()
     poll.register(sys.stdin, uselect.POLLIN)
-        
+    
+    
+    
     if poll.poll(0):
         line = sys.stdin.readline().strip()
-        show_message("line:" + line, LCD.blue)
             
         if "," in line:
+
             try:
-                direction, speed_val, servo_value = line.split(",")
-                    
+                servo_value, speed_val, direction, line_color, state = line.split(",")
+                btn_open_close(servo_value, speed_val, direction, line_color, state)
+                
                 # This calls the function we defined at the top!
-                handle_motor_commands(direction, speed_val, servo_value)
+                handle_motor_commands(direction, int(speed_val), int(servo_value), int(line_color), state)
                     
             except ValueError:
-                print("Error splitting data:", line)        
+                print("Error splitting data:", line)   
 
 

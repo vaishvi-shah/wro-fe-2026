@@ -39,7 +39,7 @@ while True:
 
             speed = 1024 #input("Speed (0-100): ")
 
-            angle = 110 #input("Servo angle (0-180): ")
+            angle = input("Servo angle (0-180): ")
 
             state = 'Avani'
 
