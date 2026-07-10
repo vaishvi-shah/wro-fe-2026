@@ -1,6 +1,6 @@
 # 1 ----------------------------------------------------------------------------------------
 
-# WORKING FINAL COPY -----
+# CHANGE DESIRED HEADING VERSION -----
 
 '''
 #1 — Hybrid weighted control (gyro + camera as two separate steering inputs)
@@ -49,7 +49,21 @@ SAFE_TURN_AREA = 2000           # max black area on the side of a turn before we
 KP = 0.05       # camera proportional gain (wall pixel area difference)
 KD = 0.001      # (unused currently, reserved for derivative term)
 KP_GYRO = 0.5   # gyro proportional gain (heading error in degrees)
-WALL_OFFSET_AVOIDING = 1000  # extra black area added to the side of a red/green obstacle to bias steering away from it
+WALL_OFFSET_AVOIDING = 1000  # extra black area added to the side of a red/green obstacle to bias steering away from it (unused now, kept for reference)
+OBSTACLE_ENTER_AREA = 400    # min red/green contour area (px) to start an avoidance maneuver (filters out noise)
+OBSTACLE_EXIT_AREA = 150     # area threshold below which the sign is considered "cleared" (lower than ENTER = hysteresis)
+OBSTACLE_CLEAR_FRAMES = 5    # consecutive frames below OBSTACLE_EXIT_AREA required before ending avoidance
+OBSTACLE_MAX_AVOID_TIME = 3.0  # failsafe only: hard cap in case the sign never visually clears
+
+# --- Obstacle offset controller (Option 3: steer using the obstacle's own pixel
+# position in middle_frame, rather than injecting fake wall area) ---
+KP_OBSTACLE = 0.15   # proportional gain on obstacle pixel error -> tune on the bot
+KD_OBSTACLE = 0.02   # reserved for a derivative term if the bias needs smoothing (unused for now)
+# middle_frame spans x=25..295 -> ROI width 270px, ROI-local x runs 0..270, center ~135.
+# TARGET_OFFSET_RED/GREEN are ROI-local pixel targets: where we want the obstacle's
+# centroid to sit once we're steering around it (re-check/tune these against your ROI).
+TARGET_OFFSET_RED = 220     # red -> keep it toward the right of the ROI, so we pass on its left
+TARGET_OFFSET_GREEN = 50    # green -> keep it toward the left of the ROI, so we pass on its right
 
 ser = serial.Serial('/dev/ttyACM0', 115200, timeout=1)  # serial link to the steering/speed microcontroller
 time.sleep(2)  # let the serial connection settle before writing
@@ -63,8 +77,10 @@ blue_count = 0      # number of blue line crossings seen
 orange_count = 0    # number of orange line crossings seen
 direction = ''      # locked turn direction once first colour is seen ("CWR" or "CCWL")
 avoiding = False      # true while avoiding a red/green obstacle
-avoiding_time = time.time()  # timestamp of the last red/green detection
+avoiding_time = time.time()  # timestamp of the start of the current avoidance window (used only as a failsafe cap)
 avoiding_colour = None  # colour (1=red, 2=green) that triggered the current avoidance window
+clear_count = 0      # consecutive frames the obstacle's area has been below OBSTACLE_EXIT_AREA
+obstacle_steer_bias = 0  # steering bias (added directly to steering_value) from the obstacle offset controller
 
 frame_count = 0      # frames seen since last FPS sample
 fps = 0
@@ -159,7 +175,33 @@ def angle_error(current, target):
     error = (current - target + 180) % 360 - 180
     return error    
 
-def navigate_wall(gyro_heading, desired_heading=0, KP=0.05, KP_GYRO=0.5, left_area=0, right_area=0):
+def contour_area(contours):
+    """
+    Total pixel area of a list of contours (0 if none). Used to measure how
+    much of a red/green sign is currently visible, so the avoidance maneuver
+    can be driven by what the camera actually sees rather than a fixed timer.
+    """
+    if not contours:
+        return 0
+    return sum(cv2.contourArea(c) for c in contours)
+
+def contour_centroid_x(contours):
+    """
+    Returns the ROI-local x-pixel centroid of the largest contour in
+    `contours`, or None if there's nothing to measure. Used to find where
+    a red/green obstacle currently sits horizontally in middle_frame, so
+    the obstacle offset controller can steer toward a target offset
+    instead of just reacting to how big the sign is.
+    """
+    if not contours:
+        return None
+    largest = max(contours, key=cv2.contourArea)
+    M = cv2.moments(largest)
+    if M["m00"] == 0:
+        return None
+    return M["m10"] / M["m00"]
+
+def navigate_wall(gyro_heading, desired_heading=0, KP=0.05, KP_GYRO=0.5, left_area=0, right_area=0, obstacle_bias=0):
     """
     Blends two steering estimates into one value:
       1. Gyro term: proportional correction on heading error (gyro_heading vs desired_heading).
@@ -181,12 +223,22 @@ def navigate_wall(gyro_heading, desired_heading=0, KP=0.05, KP_GYRO=0.5, left_ar
         gyro_steer = DEFAULT_STEER_ANGLE
 
 
-    # Weighted blend of the two independent steering estimates.
-    steering_value = GYRO_WEIGHT * gyro_steer + CAM_WEIGHT * cam_steer
+    # Weighted blend of the two independent steering estimates, plus the
+    # obstacle offset bias (0 unless we're actively avoiding a red/green sign).
+    steering_value = GYRO_WEIGHT * gyro_steer + CAM_WEIGHT * cam_steer + obstacle_bias
+
+    # Wall safety clamp: don't let the obstacle bias steer us into a wall that's
+    # already close. If the left wall area is high, biasing further left
+    # (obstacle_bias < 0) gets capped; same idea on the right.
+    if left_area > SAFE_TURN_AREA and obstacle_bias < 0:
+        steering_value = max(steering_value, DEFAULT_STEER_ANGLE - 10)
+    if right_area > SAFE_TURN_AREA and obstacle_bias > 0:
+        steering_value = min(steering_value, DEFAULT_STEER_ANGLE + 10)
+
     steering_value = max(30, min(150, steering_value))  # clamp to servo range
 
 
-    print(f"gyro heading: {gyro_heading:.0f}, gyro steer: {gyro_steer:.0f}, cam steer: {cam_steer:.0f}, steer: {steering_value:.0f}")
+    print(f"gyro heading: {gyro_heading:.0f}, gyro steer: {gyro_steer:.0f}, cam steer: {cam_steer:.0f}, obs bias: {obstacle_bias:.1f}, steer: {steering_value:.0f}")
 
 
     return int(steering_value)
@@ -230,22 +282,17 @@ while True:
     middle_frame.update(cap)
     mid_red_contours, mid_green_contours, mid_black_contours = middle_frame.find_contours()
 
-    biggest_mid_area, biggest_mid_colour = middle_frame.get_areas(
-        mid_red_contours,
-        mid_green_contours,
-        mid_black_contours
-    )
+    # Measure red and green area directly, independent of black. (The old
+    # code picked a single "biggest of the three" winner, which meant a
+    # visible sign could be masked out by the wall/track being bigger in the
+    # same ROI — we want the sign's own size, not how it compares to black.)
+    red_area = contour_area(mid_red_contours)
+    green_area = contour_area(mid_green_contours)
 
-    if biggest_mid_colour is not None:
-        colour_names = {
-            1: "RED",
-            2: "GREEN",
-            3: "BLACK"
-        }
-
+    if red_area > 0 or green_area > 0:
         cv2.putText(
             cap,
-            f"Mid: {colour_names[biggest_mid_colour]} ({biggest_mid_area:.0f})",
+            f"Mid: R({red_area:.0f}) G({green_area:.0f})",
             (90, 50),
             cv2.FONT_HERSHEY_SIMPLEX,
             0.5,
@@ -253,12 +300,15 @@ while True:
             1,
         )
 
-        # Only red/green obstacles should start (or refresh) an avoidance
-        # window — black is just the wall/track and shouldn't trigger this.
-        if biggest_mid_colour in (1, 2):
+    # Start avoiding as soon as a red/green contour is big enough to be a
+    # real sign rather than noise. If both appear at once, react to
+    # whichever is currently larger.
+    if not avoiding:
+        if red_area > OBSTACLE_ENTER_AREA or green_area > OBSTACLE_ENTER_AREA:
             avoiding = True
             avoiding_time = time.time()
-            avoiding_colour = biggest_mid_colour
+            clear_count = 0
+            avoiding_colour = 1 if red_area >= green_area else 2
 
 
     # GETTING STEERING CALCULATION -------------------
@@ -278,27 +328,52 @@ while True:
     left_area, _ = left_frame.get_areas(left_contours)
     right_area, _ = right_frame.get_areas(right_contours)
 
-    # IF AVOIDING, BIAS STEERING AWAY FROM THE OBSTACLE (RED/GREEN) FOR 1.5 SECONDS
-    # navigate_wall steers AWAY from whichever side has more area (see cam_steer:
-    # 90 + KP*(left_area - right_area)), so to steer LEFT we add fake area to the
-    # RIGHT side, and to steer RIGHT we add fake area to the LEFT side.
-    # Uses avoiding_colour (captured once, when the obstacle was first seen)
-    # rather than re-reading biggest_mid_colour each frame, so the bias holds
-    # for the full 1.5s window even after the sign stops being the largest
-    # contour in the middle ROI (e.g. black overtakes it as it passes by).
+    # IF AVOIDING, BIAS STEERING USING THE OBSTACLE'S OWN PIXEL POSITION UNTIL
+    # THE CAMERA CONFIRMS IT HAS ACTUALLY BEEN PASSED, rather than a fixed timer.
+    # obstacle_steer_bias is computed from how far the obstacle's centroid
+    # (obs_x, in middle_frame's ROI-local x coords) is from a target offset,
+    # and is added directly onto navigate_wall's steering_value; the
+    # left/right wall-following term keeps running unmodified in parallel as
+    # a safety net, and navigate_wall clamps the bias if it'd push us into a
+    # wall that's already close (see the SAFE_TURN_AREA check there).
+    #
+    # Exit condition: the avoided colour's own contour area has to drop below
+    # OBSTACLE_EXIT_AREA (lower than OBSTACLE_ENTER_AREA -> hysteresis, so it
+    # doesn't flicker in/out right at the boundary) and stay there for
+    # OBSTACLE_CLEAR_FRAMES consecutive frames (so one missed detection
+    # doesn't end the maneuver early). OBSTACLE_MAX_AVOID_TIME is only a
+    # failsafe in case the sign never visually clears.
 
-    if avoiding and time.time() - avoiding_time < 1.5:
-        if avoiding_colour == 1:  # red -> steer left, pass on the right
-            right_area += WALL_OFFSET_AVOIDING
-        elif avoiding_colour == 2:  # green -> steer right, pass on the left
-            left_area += WALL_OFFSET_AVOIDING
-    elif avoiding and time.time() - avoiding_time >= 1.5:
-        avoiding = False
-        avoiding_colour = None
+    if avoiding:
+        current_area = red_area if avoiding_colour == 1 else green_area
+        contours = mid_red_contours if avoiding_colour == 1 else mid_green_contours
+        obs_x = contour_centroid_x(contours)
+
+        if current_area > OBSTACLE_EXIT_AREA:
+            clear_count = 0   # still clearly see it -> reset the "gone" counter
+        else:
+            clear_count += 1  # shrunk below the exit threshold this frame
+
+        timed_out = time.time() - avoiding_time > OBSTACLE_MAX_AVOID_TIME
+
+        if clear_count >= OBSTACLE_CLEAR_FRAMES or timed_out:
+            avoiding = False
+            avoiding_colour = None
+            clear_count = 0
+            obstacle_steer_bias = 0
+        else:
+            if obs_x is not None:
+                target = TARGET_OFFSET_RED if avoiding_colour == 1 else TARGET_OFFSET_GREEN
+                error = obs_x - target
+                obstacle_steer_bias = KP_OBSTACLE * error
+            # else: no contour this frame -> keep the last bias rather than
+            # snapping back to 0 on a single dropped detection
+    else:
+        obstacle_steer_bias = 0
 
     # STEERING CALCULATION -------------------
 
-    steering = 100 + navigate_wall(gyro, desired_heading, left_area=left_area, right_area=right_area)  # blended gyro+camera steering, offset for serial protocol
+    steering = 100 + navigate_wall(gyro, desired_heading, left_area=left_area, right_area=right_area, obstacle_bias=obstacle_steer_bias)  # blended gyro+camera+obstacle steering, offset for serial protocol
 
 
 
