@@ -210,8 +210,10 @@ def btn_open_close(ser_value, speed_value, direc, line_col, sta ):
     LCD.show()
     time.sleep(0.3)
 
-show_message("Welcome!!!", LCD.green)
 while True:
+    
+    show_message("Welcome!!!", LCD.green)
+
 
     # -------------------------
     # OPEN BUTTON

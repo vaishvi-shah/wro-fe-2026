@@ -101,6 +101,40 @@ class Frame:
             return self.line_counter2
         return 0
 
+    def scan_ahead(self, img):
+        """
+        Looks at what's currently in this ROI and records how many obstacles are
+        ahead (0, 1, or 2), each one's colour, and its position. Assumes group 0
+        is RED and group 1 is GREEN (this Frame's obstacle-colour setup). Meant to
+        be called only at startup and right after a turn completes -- NOT every
+        loop iteration -- so the result stays fixed while avoidance/wall-following
+        logic keeps grabbing frames where an obstacle can drop in and out of view.
+        """
+        self.update(img)
+        red_contours, green_contours = self.find_contours()
+
+        found = (
+            [(c, "RED") for c in red_contours if cv2.contourArea(c) > 5] +
+            [(c, "GREEN") for c in green_contours if cv2.contourArea(c) > 5]
+        )
+        found.sort(key=lambda item: item[0][:, :, 1].max(), reverse=True)
+
+        obstacles = []
+        for c, colour in found[:2]:
+            pts = c.reshape(-1, 2)
+            if colour == "GREEN":
+                rel_x, rel_y = pts[pts[:, 0].argmin()]
+            else:
+                rel_x, rel_y = pts[pts[:, 0].argmax()]
+            obstacles.append({
+                "colour": colour,
+                "x": int(rel_x) + self.x1,
+                "y": int(rel_y) + self.y1,
+            })
+
+        print(f"AHEAD SCAN: {len(obstacles)} obstacle(s) -- {obstacles}")
+        return obstacles
+
     def get_areas(self, *contour_sets):
         """
         Accepts however many contour sets you have (one per colour group)
