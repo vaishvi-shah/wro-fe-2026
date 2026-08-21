@@ -184,9 +184,9 @@ def handle_motor_commands(direction, speed_str, angle_str, line, state):
         
         set_angle(angle)
         
-        if direction == "CW":
+        if direction == "FWD":
             motor_forward(speed)
-        elif direction == "CCW":
+        elif direction == "BWD":
             motor_backward(speed)
         elif direction == "STOP":
             motor_stop()

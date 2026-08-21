@@ -285,6 +285,12 @@ while True:
 
 
     if (SHOW_VID):
+        # ROI borders, drawn last (not in Frame.update()) so a border baked
+        # early doesn't leak into another Frame's crop later -- see Frame.draw_roi().
+        left_frame.draw_roi(cap)
+        right_frame.draw_roi(cap)
+        bottom_frame.draw_roi(cap)
+
         # Overlay debug info (steering angle, line counts, FPS) on the preview frame.
         cv2.putText(cap, f"Steer: {steering:.2f}", (100, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255,255,255), 1)
         cv2.putText(cap, f"O: {str(orange_count)}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,127,255), 1)

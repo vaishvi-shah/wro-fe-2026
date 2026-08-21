@@ -65,7 +65,7 @@ INNER_WALL_TRIPWIRE_CWR = [(300, 190), (305, 205), (310, 220)]  # near right edg
 INNER_WALL_TRIPWIRE_CCL = [(20, 190), (15, 205), (10, 220)]     # near left edge, mirror of CWR
 INNER_WALL_SOFT_KP_SCALE = 0.4  # damps KP/KP_GYRO during a tripwire fallback -- soft peel-off, not a sharp correction
 
-state = State.WALL_FOLLOW  # authoritative: every branch below dispatches on this. Starts here so the
+state = State.OUT_PARKING  # authoritative: every branch below dispatches on this. Starts here so the
                             # out-parking manoeuvre runs before anything else; nothing ever sets state
                             # back to OUT_PARKING once it leaves, so it's guaranteed one-time.
 stopping = False    # true once the stop sequence has started -- independent of `state`, which
@@ -392,29 +392,17 @@ while True:
             print(f"OUT_PARKING: left_area={left_area:.0f} right_area={right_area:.0f} -> steer={out_parking_steer}")
 
         steering = out_parking_steer
-        speed = 87
+        speed = 75
 
         if time.time() - out_parking_start >= 1.0:
-            # Minimum turn duration met -- before completing the manoeuvre, check for the
-            # matching-colour obstacle on the side we just turned into (RED when we turned
-            # right/away-from-left-wall, GREEN when we turned left/away-from-right-wall,
-            # same convention as the pending_turn veto below). Keep holding the turn until
-            # it clears instead of finishing straight into it.
-            middle_frame.update(cap)
-            red_contours, green_contours = middle_frame.find_contours()
-            red_area, _ = middle_frame.get_areas(red_contours)
-            green_area, _ = middle_frame.get_areas(green_contours)
-            obs_on_screen = red_area > 100 or green_area > 100
-            obstacle_color = "RED" if red_area >= green_area else "GREEN"
-
-            turned_right = out_parking_steer == 150  # i.e. left wall was bigger/closer
-            matching_obstacle_visible = (turned_right and red_area > 100) or (not turned_right and green_area > 100)
-
-            if matching_obstacle_visible:
-                print(f"OUT_PARKING: holding turn, {obstacle_color} obstacle still visible "
-                      f"(red={red_area:.0f} green={green_area:.0f})")
-            else:
-                state = State.WALL_FOLLOW  # manoeuvre complete -- nothing ever sets state back to OUT_PARKING
+            # Minimum turn duration met -- hand off to WALL_FOLLOW unconditionally, obstacle
+            # or not. If a red/green obstacle is visible, the very next frame's normal
+            # per-frame detection below (middle_frame update -> red_area/green_area check)
+            # picks it up on its own and promotes state to AVOIDING_OBSTACLE, which already
+            # handles proximity-based slowdown, pass-point steering around it, and a proper
+            # REVERSING sub-state if it's too close -- no need to duplicate any of that here
+            # with a bespoke "hold until this specific colour clears" loop.
+            state = State.WALL_FOLLOW  # manoeuvre complete -- nothing ever sets state back to OUT_PARKING
 
         if abs(sent_steer - steering) >= 3 or speed != sent_speed or controller != sent_controller:
             ser.write(f"{steering},{speed},{controller},{orange_count},open\n".encode())

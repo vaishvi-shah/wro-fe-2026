@@ -46,10 +46,22 @@ class Frame:
         self.update(img)
 
     def update(self, img):
-        cv2.rectangle(img, (self.x1, self.y1), (self.x2, self.y2), (255, 255, 255), 1)
         self.frame = img[self.y1:self.y2, self.x1:self.x2]
         self.frame_gaussed = cv2.GaussianBlur(self.frame, (1, 1), cv2.BORDER_DEFAULT)
         self.hsv = cv2.cvtColor(self.frame_gaussed, cv2.COLOR_BGR2HSV)
+
+    def draw_roi(self, img):
+        """
+        Draws this ROI's debug border onto img. Deliberately separate from
+        update(): update() used to draw this border directly onto the shared
+        capture frame, which -- since multiple Frames crop from that same
+        array -- baked one Frame's border line into pixels another Frame
+        (e.g. a wider obstacle-detection ROI containing this one) would crop
+        and colour-mask afterward, slicing anything that straddled the
+        border into two separate contours. Call this only after every
+        Frame's update()/detection has run for the current loop iteration.
+        """
+        cv2.rectangle(img, (self.x1, self.y1), (self.x2, self.y2), (255, 255, 255), 1)
 
     def find_contours(self):
         """
@@ -80,7 +92,7 @@ class Frame:
                 self.contours = contours
 
             if contours:
-                cv2.drawContours(self.frame, contours, -1, (0, 255, 255), 2)  # Yellow (BGR)
+                cv2.drawContours(self.frame, contours, -1, (0, 255, 255), 1)  # Yellow (BGR)
 
             results.append(contours)
 

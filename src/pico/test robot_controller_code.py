@@ -8,20 +8,22 @@ time.sleep(2)
 print("READY")
 
 open_commands = [
-    "0,1024,FWD,9,open",
-    "45,800,FWD,10,open",
-    "90,600,FWD,12,open",
-    "135,400,FWD,15,open",
-    "180,0,STOP,0,open"
+    "85,1024,BWD,9,open"
+    # "45,800,BWD,10,open",
+    # "90,600,BWD,12,open",
+    # "135,400,BQWD,15,open",
+    # "150,0,STOP,0,open"
 ]
 
 obstacle_commands = [
-    "180,0,STOP,0,obstacle",
-    "135,400,FWD,15,obstacle",
-    "90,600,FWD,12,obstacle",
-    "45,800,FWD,10,obstacle",
-    "0,1024,FWD,9,obstacle"
+    "85,0,STOP,0,obstacle"
+    # "135,400,FWD,15,obstacle",
+    # "90,600,FWD,12,obstacle",
+    # "45,800,FWD,10,obstacle",
+    # "30,1024,FWD,9,obstacle"
 ]
+
+open_commands = []
 
 stop_command = "90,0,STOP,0,stop"
 

@@ -1,14 +1,29 @@
 # 1 ----------------------------------------------------------------------------------------
-"""
-Obstacle avoidance has been extended to anticipate multiple obstacles. In
-addition to calculating the pass point for the nearest obstacle, the algorithm
-also determines the pass point for a second visible obstacle. As the robot
-approaches the first obstacle, the steering target is gradually blended toward
-the second obstacle's pass point using a proximity measure based on both
-contour area and vertical image position. This predictive approach produces
-smoother steering transitions and reduces abrupt direction changes when
-navigating consecutive obstacles.
-"""
+
+# WORKING FINAL COPY -----
+
+'''
+#1 — Hybrid weighted control (gyro + camera as two separate steering inputs)
+Camera and gyro each compute their own steering value independently:
+cam_steer (wall imbalance → direct correction)
+gyro_steer (heading error → direct correction)
+Final steering is a blend:
+70% gyro + 30% camera
+Meaning:
+Camera directly fights steering every loop.
+Gyro also directly fights steering every loop.
+Behavior:
+More reactive to sensor noise.
+Two controllers “compete” and are averaged.
+
+
+Core idea:
+
+
+“Both sensors directly output steering, then we mix them.”
+
+
+'''
 
 
 # imports!
@@ -28,7 +43,6 @@ bno055.load_calibration()      # apply saved accel/gyro/mag offsets if present
 controller = "FWD"
 sent_steer = 0
 SHOW_VID = True                 # toggle live OpenCV preview window
-draw = True                     # toggle whether debug overlays are drawn onto the preview frame
 DEFAULT_STEER_ANGLE = 90        # neutral/straight steering angle, sent _as 100 + this
 LINE_COUNT = 12                # number of colour-line crossings before stopping1Q
 SAFE_TURN_AREA = 2000           # max black area on the side of a turn before we can safely execute the turn
@@ -37,7 +51,6 @@ KD = 0.001      # (unused currently, reserved for derivative term)
 KP_GYRO = 0.5   # gyro proportional gain (heading error in degrees)
 KP_OBSTACLE = 0.4   # obstacle-avoidance proportional gain (target pixel error -> steering degrees)
 avoiding_obstacle = False
-reversing = False
 
 ser = serial.Serial('/dev/ttyACM0', 115200, timeout=1)  # serial link to the steering/speed microcontroller
 time.sleep(2)  # let the serial connection settle before writing
@@ -67,19 +80,15 @@ blue_range = [
 ]
 
 orange_range = [
-    [np.array([14, 60, 100]), np.array([25, 255, 255])]
+    [np.array([10, 60, 100]), np.array([25, 255, 255])]
 ]
 
-# Capped at S=90: a dark pixel only counts as "black" if it's also
-# desaturated (true gray/black wall), not just dim-and-colourful (a
-# shadowed orange line or red/green obstacle edge was bleeding into
-# this range before since it only checked Value).
 black_range = [
-    [np.array([0, 0, 0]), np.array([180, 90, 125])]
+    [np.array([0, 0, 0]), np.array([180, 200, 60])]
 ]
 
-red1_range = [
-    [np.array([0, 120, 107]), np.array([8, 255, 255])]
+red1_range = [  
+    [np.array([0, 120, 107]), np.   array([10, 255, 255])]
 ]
 
 red2_range = [
@@ -208,14 +217,13 @@ cap = picam2.capture_array("main")  # grab one frame to size the ROI frames belo
 
 # initializing frames: each Frame watches a fixed region of interest (ROI) for a colour mask.
 # left/right strips watch for the black wall; bottom strip watches for blue/orange turn markers.
-left_frame = Frame(cap, 0, 80, 60, 200, colour_range=[black_range])
-right_frame = Frame(cap, 240, 320, 60, 200, colour_range=[black_range])
+left_frame = Frame(cap, 0, 20, 60, 200, colour_range=[black_range])
+right_frame = Frame(cap, 300, 320, 60, 200, colour_range=[black_range])
 bottom_frame = Frame(cap, 100, 220, 200, 240, colour_range=[blue_range, orange_range])
 middle_frame = Frame(cap, 0, 320, 40, 220, colour_range=[red_obstacle_range, green_obstacle_range])
 # Full frame width, not a narrow centre strip: during the avoidance turn the obstacle
 # drifts sideways in-frame, and a narrow ROI was clipping/losing it well before the robot
 # had actually passed it.
-
 
 print("ENTERING THE WHILE LOOP")
 
@@ -235,79 +243,46 @@ while True:
     if red_area > 400 or green_area > 400:
         avoiding_obstacle = True  # block is in view; hold off on executing a queued turn until it's clear
         print(f"Red area: {red_area}, Green area: {green_area}")
+        # Recomputed every frame (not locked), so the target tracks the obstacle
+        # dynamically as the robot moves.
+        red_bottom = max([c[:,:,1].max() for c in red_contours], default=0)
+        green_bottom = max([c[:,:,1].max() for c in green_contours], default=0)
+        print(f"GREEN BOTTOM: {green_bottom}, RED_BOTTOM: {red_bottom}")
 
-        # Every contour across both colours, filtered down to real blobs (drop
-        # single-pixel noise), ranked by how close its bottom edge is to the bottom of
-        # the ROI (largest y = nearest the robot). The first is the closer contour, the
-        # second (if any -- there's only ever 0 or 1 more) is the farther one.
-        all_contours = (
-            [(c, "RED") for c in red_contours if cv2.contourArea(c) > 5] +
-            [(c, "GREEN") for c in green_contours if cv2.contourArea(c) > 5]
-        )
-        all_contours.sort(key=lambda item: item[0][:, :, 1].max(), reverse=True)
-
-        closest_contour, obstacle_color = all_contours[0]
-        obstacle_area = cv2.contourArea(closest_contour)
-
-        # Bounding box around the tracked obstacle, offset from the ROI crop into
-        # full-frame coordinates.
-        box_x, box_y, box_w, box_h = cv2.boundingRect(closest_contour)
-        cv2.rectangle(cap, (box_x + middle_frame.x1, box_y + middle_frame.y1),
-                      (box_x + box_w + middle_frame.x1, box_y + box_h + middle_frame.y1), (255, 255, 255), 2)
+        # >= (not elif on the reverse comparison) so obstacle_color is always assigned --
+        # an exact tie previously left it unset, which either crashed with a NameError (the
+        # very first time this ever ran) or silently reused a stale colour from a
+        # previous, possibly different-coloured obstacle.
+        if green_bottom >= red_bottom:
+            obstacle_color = "GREEN"
+            obstacle_contours = green_contours
+        else:
+            obstacle_color = "RED"
+            obstacle_contours = red_contours
 
         print(F"OBSTACLE COLOUR: {obstacle_color}")
+        
 
-        # The obstacle's pixel area grows as the robot gets closer (and shrinks again
-        # once most of it drops out of the ROI at the very last moment), so use it
-        # directly as the "how close/how much of it is visible" proximity measure --
-        # slow down as more of the obstacle comes into view, giving more time to avoid it.
-        proximity = (obstacle_area - 400) / (4000 - 400)  # 400 = detection threshold, 4000 = "close" tune on track
-        proximity = max(0.0, min(1.0, proximity))
-        speed = int(75 - proximity * (75 - 60))  # 75 far away, 60 once close -- tune on track
+        # The "closest" contour is the one that reaches furthest down the ROI
+        # (largest y = nearest the robot).
+        closest_contour = max(obstacle_contours, key=lambda c: c[:, :, 1].max())
 
-        # Bottom-left corner of the bounding box for GREEN, bottom-right for RED --
-        # the pass-side corner of the box, not a point picked off the contour itself.
+        # Bottom-most row of the contour, then RED passes on the right (right-most
+        # point on that row) / GREEN passes on the left (left-most point on that row).
+        pts = closest_contour.reshape(-1, 2)
+        obstacle_rel_y = pts[:, 1].max()
+        bottom_row = pts[pts[:, 1] == obstacle_rel_y]
         if obstacle_color == "GREEN":
-            obstacle_rel_x, obstacle_rel_y = box_x, box_y + box_h
+            obstacle_rel_x = bottom_row[:, 0].min()
         else:
-            obstacle_rel_x, obstacle_rel_y = box_x + box_w, box_y + box_h
+            obstacle_rel_x = bottom_row[:, 0].max()
 
         # Contour coords are relative to middle_frame's ROI crop; offset to full-frame coords.
         obstacle_x = int(obstacle_rel_x) + middle_frame.x1
         obstacle_y = int(obstacle_rel_y) + middle_frame.y1
 
-        # If the obstacle's bottom edge has pushed past 3/4 of the way down the ROI and
-        # a large area of it is still visible, we're too close to steer around it safely --
-        # reverse instead. Set steering back to straight and flip the controller field to
-        # the reverse signal before backing up.
-
-
-# ---- reversing logc ------
-
-        # GREEN passes on the left, RED passes on the right -- if the close/large block
-        # is already sitting on its "wrong" (already-clear) half of the frame, it isn't
-        # actually boxing us in, so don't trigger a reverse for it.
-        frame_mid_x = cap.shape[1] // 2
-        wrong_side = (obstacle_color == "GREEN" and obstacle_x > frame_mid_x) or (obstacle_color == "RED" and obstacle_x < frame_mid_x)
-
-        if not reversing:
-            if not wrong_side and obstacle_rel_y > 0.75 * (middle_frame.y2 - middle_frame.y1) and obstacle_area > 4000:
-                reversing = True
-                reversing_time = time.time()
-        else:
-            if time.time() - reversing_time < 1:
-                controller = "BWD"
-                steering = 90
-                speed = 80
-            else:
-                reversing = False
-                controller = "FWD"
-
- ### obstacle avoidance -- finding the points to plot and follow
-
-        # On the obstacle's own row, look for the closest black pixel on the pass
-        # side -- restricted to left_frame's/right_frame's own ROI columns, since
-        # those are the actual wall-watching strips.
+        # Search the WHOLE frame width, on the obstacle's own row, for the closest
+        # black pixel on the pass side — not limited to left_frame/right_frame's ROI box.
         full_hsv = cv2.cvtColor(cap, cv2.COLOR_BGR2HSV)
         full_black_mask = cv2.inRange(full_hsv, black_range[0][0], black_range[0][1])
 
@@ -315,13 +290,13 @@ while True:
         if 0 <= obstacle_y < full_black_mask.shape[0]:
             xs = np.nonzero(full_black_mask[obstacle_y])[0]
             if obstacle_color == "GREEN":
-                xs = xs[(xs >= left_frame.x1) & (xs < left_frame.x2)]
+                xs = xs[xs < obstacle_x]
                 if xs.size > 0:
-                    black_wall_x = int(xs.max())  # right-most black pixel in the left ROI
+                    black_wall_x = int(xs.max())  # nearest black pixel to the left of the obstacle
             else:
-                xs = xs[(xs >= right_frame.x1) & (xs < right_frame.x2)]
+                xs = xs[xs > obstacle_x]
                 if xs.size > 0:
-                    black_wall_x = int(xs.min())  # left-most black pixel in the right ROI
+                    black_wall_x = int(xs.min())  # nearest black pixel to the right of the obstacle
 
         # The wall search above only checks the obstacle's exact current row, so a single
         # noisy frame can miss it even though the obstacle itself was found fine. Only the
@@ -361,16 +336,15 @@ while True:
             cv2.putText(cap, f"Error: {cam_error} px", (target_x - 60, target_y - 15),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 0, 255), 1)  # Pink
 
-            if not reversing:
-                steering = int(max(30, min(150, DEFAULT_STEER_ANGLE + KP_OBSTACLE * cam_error)))
-        elif not reversing:
+            steering = int(max(30, min(150, DEFAULT_STEER_ANGLE + KP_OBSTACLE * cam_error)))
+        else:
             # No wall point ever found for this obstacle -- fall back to a hard turn toward
             # this colour's correct pass side (right for RED, left for GREEN) instead of
             # always turning right, which would steer straight into a GREEN obstacle.
             steering = 150 if obstacle_color == "RED" else 30
 
         cv2.putText(cap, f"{obstacle_color} OBSTACLE", (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
-        cv2.putText(cap, f"Speed: {speed}", (50, 70), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
+        speed = 75
     else:
         last_target = None  # obstacle cleared; don't carry a stale target into the next one
         avoiding_obstacle = False  # no block in view; safe to execute a queued turn again
@@ -462,6 +436,14 @@ while True:
 
 
     if (SHOW_VID):
+        # ROI borders, drawn last (not in Frame.update()) so they can't bleed into
+        # another Frame's crop earlier in the loop and split a straddling obstacle
+        # into two contours -- see Frame.draw_roi().
+        left_frame.draw_roi(cap)
+        right_frame.draw_roi(cap)
+        bottom_frame.draw_roi(cap)
+        middle_frame.draw_roi(cap)
+
         # Overlay debug info (steering angle, line counts, FPS) on the preview frame.
         cv2.putText(cap, f"Steer: {steering:.2f}", (100, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255,255,255), 1)
         cv2.putText(cap, f"O: {str(orange_count)}", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,127,255), 1)
@@ -476,17 +458,16 @@ while True:
 
 
             frame_time = time.time()
-        cv2.putText(cap, f"FPS: {fps:.2f}", (220, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 1)
+        cv2.putText(cap, f"FPS: {fps:.2f}", (220, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0,255,0), 1)            
 
 
-        if draw:
-            cv2.imshow("Video Frame", cap)
-
+        cv2.imshow("Video Frame", cap)
+    
     print(steering)
 
     if abs(sent_steer - steering) >=3:
         print(steering)
-        ser.write(f"{steering-22},{speed},{controller},{orange_count},open\n".encode())  # send steering+speed to the microcontroller each loop
+        ser.write(f"{steering},{speed},{controller},{orange_count},open\n".encode())  # send steering+speed to the microcontroller each loop
         sent_steer = steering
         ser.flush()
     time.sleep(0.01)
@@ -500,4 +481,4 @@ ser.write(f"90,0,STOP,0,stop\n".encode())
 ser.close()
        
 
-cv2.destroyAllWindows()
+cv2.destroyAllWindows() 
