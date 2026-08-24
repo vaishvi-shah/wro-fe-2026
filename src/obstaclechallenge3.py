@@ -120,8 +120,12 @@ park_force_turn_obstacle_reverse_start = None  # timestamp a red/green obstacle 
                                                 # (opposite lock from the force turn's own steering)
 park_final_reverse_start = None     # timestamp the closing 1.5s reverse began
 park_final_reverse_done = False     # true once that 1.5s has elapsed
-park_final_reverse_started = False  # true once white has been seen at (151, 98) -- gates
-                                     # the straight reverse itself, held before that
+park_final_reverse_started = False  # true once black-then-white has been seen at (151, 90) --
+                                     # gates the straight reverse itself, held before that
+park_final_reverse_black_seen = False  # true once that same point has read black at least
+                                        # once -- white only counts as the start trigger after
+                                        # this, so a point that's white from the start doesn't
+                                        # immediately (falsely) trigger the reverse
 park_final_turn_called = False      # guards the one-shot turn(direction) call that adds
                                      # another 90 to desired_heading for the closing turn
 park_final_turn_done = False        # true once gyro reads within 5 deg of that target heading
@@ -172,12 +176,13 @@ orange_range = [
     [np.array([10, 40, 70]), np.array([27, 255, 255])]
 ]
 
-# Capped at S=90: a dark pixel only counts as "black" if it's also
-# desaturated (true gray/black 0.wall), not just dim-and-colourful (a
-# shadowed orange line or red/green obstacle edge was bleeding into
-# this range before since it only checked Value).
+# S widened to the full 0-255 range -- any hue/tint counts as "black" as
+# long as it's dark enough (V), so shadows and colour-cast dark surfaces
+# (not just true desaturated gray/black) are included too.
+# V widened from 60 to 90 to catch dimmer/shadowed black -- stays below
+# white_range's V>=100 floor so the two don't overlap.
 black_range = [
-    [np.array([0, 0, 0]), np.array([180, 200, 60])]
+    [np.array([0, 0, 0]), np.array([180, 255, 90])]
 ]
 
 red1_range = [
@@ -488,7 +493,7 @@ while True:
         red_contours, green_contours, black_contours, magenta_contours = parking_frame.find_contours()
 
         wall_x = None
-        speed = 70  # every active driving phase below uses this; only the final hold overrides it
+        speed = 60  # every active driving phase below uses this; only the final hold overrides it
 
         if not park_square_filled:
             # Watch a fixed point (195, 82) instead Qof averaging a square region -- once
@@ -510,10 +515,10 @@ while True:
                 park_turned = True
         elif not park_cleared:
             # Watch a fixed point on screen -- once it reads black, it's time for the
-            # next (force) turn. (160, 67) for CCL; CWR uses (155, 52)
+            # next (force) turn. (160, 62) for CCL; CWR uses (155, 52)
             # instead, since the turn direction shifts where the relevant wall edge
             # lands in frame.
-            cleared_watch_point = (155, 52) if direction == "CWR" else (160, 67)
+            cleared_watch_point = (155, 52) if direction == "CWR" else (160, 62)
             watch_point_black_mask = cv2.inRange(parking_frame.hsv, black_range[0][0], black_range[0][1])
             if watch_point_black_mask[cleared_watch_point[1], cleared_watch_point[0]]:
                 park_cleared = True
@@ -549,7 +554,7 @@ while True:
         #         # whether the obstacle is still visible.
         #         controller = "BWD"
         #         steering = 55 if direction == "CWR" else 125
-        #         speed = 70
+        #         speed = 60
         #         if time.time() - park_force_turn_obstacle_reverse_start >= 1.0:
         #             park_force_turn_obstacle_done = True
         #             controller = "FWD"
@@ -557,12 +562,12 @@ while True:
         #         park_force_turn_obstacle_reverse_start = time.time()
         #         controller = "BWD"
         #         steering = 55 if direction == "CWR" else 125
-        #         speed = 70
+        #         speed = 60
         #     else:
         #         # Nothing in the way -- nothing to do, move straight on.
         #         park_force_turn_obstacle_done = True
         #         steering = DEFAULT_STEER_ANGLE
-        #         speed = 70
+        #         speed = 60
         elif not park_final_reverse_done:
             # Before committing to the straight-locked reverse, confirm desired_heading
             # is actually still met (momentum/overshoot right after the force turn can
@@ -586,11 +591,16 @@ while True:
                     cv2.drawContours(parking_frame.frame, white_contours, -1, (255, 255, 255), 1)
 
                 if not park_final_reverse_started:
-                    # Hold here (heading confirmed, not yet reversing) until white shows
-                    # up at (151, 98) -- that's the trigger to actually start the reverse.
+                    # Hold here (heading confirmed, not yet reversing) until (151, 90) has
+                    # gone black then white -- white alone doesn't trigger the reverse until
+                    # black has been seen there first, so a point that's already white at
+                    # the start of this phase doesn't falsely trigger it immediately.
                     steering = DEFAULT_STEER_ANGLE
                     speed = 0
-                    if white_mask[98, 151]:
+                    black_at_point = cv2.inRange(parking_frame.hsv, black_range[0][0], black_range[0][1])[90, 151]
+                    if black_at_point:
+                        park_final_reverse_black_seen = True
+                    elif park_final_reverse_black_seen and white_mask[90, 151]:
                         park_final_reverse_started = True
                 else:
                     # Reverse straight (steering locked at 90, not gyro-corrected) until the
@@ -613,16 +623,17 @@ while True:
                         park_final_reverse_done = True
                         controller = "FWD"
         elif not park_final_turn_done:
-            # Forced max turn (125=CWR/right, 55=CCL/left), reversing while turning --
-            # runs until the gyro shows another 90 degrees of rotation from here.
-            # Inverted vs. every other turn() call in this maneuver: this closing turn
-            # swings back the opposite way (CWR adds everywhere else -> subtracts here,
-            # and vice versa), since it's unwinding the force-turn just before it.
+            # Forced max turn, reversing while turning -- runs until the gyro shows
+            # another 90 degrees of rotation from here. Inverted vs. every other turn()
+            # call in this maneuver: this closing turn swings back the opposite way
+            # (unwinding the force-turn just before it), which for CWR means turn("CCL")
+            # at steering=125. CCL now always mirrors CWR's own final turn here (same
+            # turn() call and steering) instead of mirroring itself.
             if not park_final_turn_called:
-                turn("CCL" if direction == "CWR" else "CWR")
+                turn("CCL")
                 park_final_turn_called = True
             controller = "BWD"
-            steering = 125 if direction == "CWR" else 55
+            steering = 125
             if gyro is not None and abs(angle_error(gyro, desired_heading)) < 5:
                 park_final_turn_done = True
                 controller = "FWD"
@@ -1016,14 +1027,23 @@ while True:
                 cv2.putText(cap, f"tof_distance={get_tof_distance()} mm", (10, 130),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1)
 
-            # Watch point that starts the final reverse -- (151, 98) -- reverse holds
-            # here (speed 0) until this reads white.
+            # Watch point that starts the final reverse -- (151, 90) -- reverse holds here
+            # (speed 0) until this point has gone black then white. Red = hasn't seen black
+            # yet, yellow = black seen, waiting on white, green = white seen (about to trigger).
             if park_force_turn_done and not park_final_reverse_done and not park_final_reverse_started:
-                final_reverse_start_watch_hit = bool(
-                    cv2.inRange(parking_frame.hsv, white_range[0][0], white_range[0][1])[98, 151])
-                cv2.circle(cap, (151, 98), 4, (0, 255, 0) if final_reverse_start_watch_hit else (0, 0, 255), -1)
-                cv2.putText(cap, "(151,98)", (157, 102),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.35, (0, 255, 0) if final_reverse_start_watch_hit else (0, 0, 255), 1)
+                final_reverse_start_black_hit = bool(
+                    cv2.inRange(parking_frame.hsv, black_range[0][0], black_range[0][1])[90, 151])
+                final_reverse_start_white_hit = bool(
+                    cv2.inRange(parking_frame.hsv, white_range[0][0], white_range[0][1])[90, 151])
+                if park_final_reverse_black_seen and final_reverse_start_white_hit:
+                    watch_colour = (0, 255, 0)
+                elif park_final_reverse_black_seen or final_reverse_start_black_hit:
+                    watch_colour = (0, 255, 255)
+                else:
+                    watch_colour = (0, 0, 255)
+                cv2.circle(cap, (151, 90), 4, watch_colour, -1)
+                cv2.putText(cap, "(151,90)", (157, 94),
+                            cv2.FONT_HERSHEY_SIMPLEX, 0.35, watch_colour, 1)
 
             # Watch point for the final reverse -- (151, 122) -- reverse continues until
             # this reads no black.
@@ -1043,11 +1063,11 @@ while True:
                 cv2.putText(cap, "(195,82)", (201, 86),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.35, (0, 255, 0) if square_watch_hit else (0, 0, 255), 1)
 
-            # Watch point for park_cleared -- (160, 67) for CCL, (155, 52) for CWR --
+            # Watch point for park_cleared -- (160, 62) for CCL, (155, 52) for CWR --
             # shown for the whole run, not just once park_turned, so it's visible from
             # the start instead of appearing late.
             if not park_cleared:
-                overlay_cleared_point = (155, 52) if direction == "CWR" else (160, 67)
+                overlay_cleared_point = (155, 52) if direction == "CWR" else (160, 62)
                 cleared_watch_hit = bool(
                     cv2.inRange(parking_frame.hsv, black_range[0][0], black_range[0][1])
                     [overlay_cleared_point[1], overlay_cleared_point[0]])
