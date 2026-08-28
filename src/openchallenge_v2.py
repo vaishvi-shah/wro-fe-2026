@@ -148,7 +148,7 @@ def navigate_wall(gyro_heading, desired_heading=0):
     Blends two steering estimates into one value:
       1. Gyro term: proportional correction on heading error (gyro_heading vs desired_heading).
       2. Camera term: proportional correction on left/right wall pixel area difference (original logic).
-    Final steering = 70% gyro term + 30% camera term, clamped to servo range [55, 125] (90 +/- 35).
+    Final steering = 70% gyro term + 30% camera term, clamped to servo range [45, 135] (90 +/- 45).
     """
     # Refresh the side frames with the latest camera capture and re-run the
     # colour mask + contour detection so we know how much "wall" each side sees.
@@ -163,6 +163,10 @@ def navigate_wall(gyro_heading, desired_heading=0):
     left_area, _ = left_frame.get_areas(left_contours)
     right_area, _ = right_frame.get_areas(right_contours)
 
+    # Blue seen first (CCL) -> bias steering further left by padding the
+    # right-side black pixel count.
+    if direction == "CCL":
+        right_area += 1000
 
     # Camera term (unchanged from original): more black pixels on one side
     # pushes steering away from that side, proportional to the area gap.
@@ -179,7 +183,7 @@ def navigate_wall(gyro_heading, desired_heading=0):
 
     # Weighted blend of the two independent steering estimates.
     steering_value = GYRO_WEIGHT * gyro_steer + CAM_WEIGHT * cam_steer
-    steering_value = max(55, min(125, steering_value))  # clamp to servo range
+    steering_value = max(45, min(135, steering_value))  # clamp to servo range
 
 
     print(f"gyro heading: {gyro_heading:.0f}, gyro steer: {gyro_steer:.0f}, cam steer: {cam_steer:.0f}, steer: {steering_value:.0f}")
@@ -296,7 +300,7 @@ while True:
         stop = True
    
     if stop:
-        if time.time() - stop_time > 4                                             :
+        if time.time() - stop_time > 2:
             speed = 0
             ser.write(f"{DEFAULT_STEER_ANGLE},0,STOP,0,test\n".encode())  # send the fixed stop command
             ser.flush()
