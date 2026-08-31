@@ -1,4 +1,4 @@
-# Batmobile — WRO Future Engineers 2026
+# Electrocute — WRO Future Engineers 2026
 
 ## World Robot Olympiad — Future Engineers
 
