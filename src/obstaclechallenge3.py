@@ -71,11 +71,11 @@ sent_steer = 0
 sent_speed = None    # last speed actually sent -- a phase/state transition that changes speed or
 sent_controller = None  # conqtroller (e.g. FWD->BWD) without also moving steering by >=3 must still
                         # resend, or the robot keeps executing whatever was last physically sent
-SHOW_VID = True                 # toggle live OpenCV preview window
+SHOW_VID = True                 # togglsse live OpenCV preview window
 DEFAULT_STEER_ANGLE = 90        # neutral/straight steering angle, sent _as 100 + this
-LINE_COUNT = 12                 # number of colour-line crossings before stopping1Q
+LINE_COUNT = 12              # number of colour-line crossings before stopping1Q
 SAFE_TURN_AREA = 3000           # max black area on the side of a turn before we can safely execute the turn
-MATCHING_OBSTACLE_CLEAR_DELAY = 0.4  # seconds to keep gyro-crawling past a matching-colour obstacle
+MATCHING_OBSTACLE_CLEAR_DELAY = 0.2  # seconds to keep gyro-crawling past a matching-colour obstacle
                                       # clearing the frame before actually firing turn()
 POST_OBSTACLE_TURN_DURATION = 2.0  # seconds POST_OBSTACLE_TURN gyro-steers on the new heading
                                     # before handing off to WALL_FOLLOW
@@ -370,6 +370,7 @@ def navigate_wall(gyro_heading, desired_heading=0, kp_scale=1.0):
     left_area, _ = left_frame.get_areas(left_contours)
     right_area, _ = right_frame.get_areas(right_contours)
 
+    print(f"left_area={left_area:.0f} right_area={right_area:.0f}")  # TEMP debug -- black pixel counts only
 
     # Camera term: proportional on the current wall-area gap, plus a derivative
     # term on how fast that gap is changing -- damps oscillation/overshoot from
@@ -1044,10 +1045,10 @@ while True:
         speed = 70  # every active driving phase below uses this; only the final hold overrides it
 
         if not park_square_filled:
-            # Watch a fixed point (195, 82) instead Qof averaging a square region -- once
+            # Watch a fixed point (195, 72) instead Qof averaging a square region -- once
             # it reads black, the bay's back wall has been reached.
             black_mask = cv2.inRange(parking_frame.hsv, black_range[0][0], black_range[0][1])
-            if black_mask[82, 195]:
+            if black_mask[72, 195]:
                 park_square_filled = True
 
         if not park_square_filled:
@@ -1292,13 +1293,13 @@ while True:
                 cv2.putText(cap, "(151,122)", (157, 126),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.35, (0, 255, 0) if final_reverse_watch_hit else (0, 0, 255), 1)
 
-            # Watch point for park_square_filled (195, 82) -- only shown while it's still
+            # Watch point for park_square_filled (195, 72) -- only shown while it's still
             # relevant (before the square/point has been read as filled).
             if not park_square_filled:
                 square_watch_hit = bool(
-                    cv2.inRange(parking_frame.hsv, black_range[0][0], black_range[0][1])[82, 195])
-                cv2.circle(cap, (195, 82), 4, (0, 255, 0) if square_watch_hit else (0, 0, 255), -1)
-                cv2.putText(cap, "(195,82)", (201, 86),
+                    cv2.inRange(parking_frame.hsv, black_range[0][0], black_range[0][1])[72, 195])
+                cv2.circle(cap, (195, 72), 4, (0, 255, 0) if square_watch_hit else (0, 0, 255), -1)
+                cv2.putText(cap, "(195,72)", (201, 76),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.35, (0, 255, 0) if square_watch_hit else (0, 0, 255), 1)
 
             # Watch point for park_cleared -- (160, 62) for CCL, (155, 30) for CWR --
