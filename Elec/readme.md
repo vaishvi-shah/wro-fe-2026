@@ -1,5 +1,4 @@
 # Electrical and Electronic Schematics
-====
 
 <table>
   <tr>
