@@ -1,3 +1,191 @@
+# Hello! We are Team Electrocute
+
+***Team Picture***
+
+We are a team of three high school students participating in the **World Robot Olympiad (WRO) Future Engineers 2026** category.
+
+| Member           | Role                 |
+| ---------------- | -------------------- |
+| Vaishvi Shah     | Software & Logic     |
+| Avani Devalankar | 3d Design & Hardware |
+| Jaitra Bhatt     | Documentation        |
+
+# Overview
+
+The primary objective was to build an autonomous robot capable of navigating a closed course with obstacles and parallel parking itself at the end.
+
+We chose this project because we wanted a challenging experience during high school where we could apply our Python skills while developing new skills in electronics, CAD, and 3D printing. We also drew inspiration from top teams that participated in WRO Future Engineers over the past two years by studying their [GitHub repositories](https://github.com/World-Robot-Olympiad-Association).
+
+Our main objective was to create a dependable and effective system while showcasing our engineering, problem-solving, and teamwork skills. The project also gave us an opportunity to expand our knowledge and develop new skills throughout the process of building our robot.
+
+We approached the development through several stages, beginning with idea generation and research, followed by designing, building, testing, and refining our system. We also kept thorough records of our work to make it easier to share information, track changes, and maintain a consistent workflow throughout the project.
+
+### Summary Video
+Add summary video here.
+
+### Obstacle Video
+Add obstacle video here.
+
+### Open Challenge Videos
+Add open challenge videos here.
+
+
+## Table of Content
+Add table of Content 
+
+## Meet The Robot
+
+- Insert robot images
+
+Meet Batmobile, our autonomous car designed and 3D-printed for WRO Future Engineers 2026. The brain of the robot is a Raspberry Pi 5, which processes the camera feed using OpenCV and handles navigation, obstacle detection, and sensor logic. A Raspberry Pi Pico communicates with the Pi through a USB serial connection and controls the DC motor and steering servo.
+
+Batmobile uses a camera, IMU, and encoder sensor to navigate the field. The camera provides visual information for navigation and obstacle detection, the IMU helps maintain a straight heading and execute accurate turns, and the encoder sensor assists with precise parking. Together, these systems allow Batmobile to independently perceive its surroundings, make decisions, and navigate the competition field.
+
+### Preliminary Work
+
+We found the public WRO repositories especially useful when getting started. Being able to look at documentation from previous teams gave us a reference for how to approach the competition without having to figure everything out from scratch. We’ve tried to do the same with our documentation by making it practical and detailed enough that a future team can use it as a starting point for their own robot.
+
+
+# Introduction
+
+## Meet The Robot
+
+- Insert robot images
+
+Meet Batmobile, our autonomous car designed and 3D-printed for WRO Future Engineers 2026. The brain of the robot is a Raspberry Pi 5, which processes the camera feed using OpenCV and handles navigation, obstacle detection, and sensor logic. A Raspberry Pi Pico communicates with the Pi through a USB serial port and controls the DC motor and the steering servo.
+
+Batmobile uses a camera, IMU, and encoder sensor to navigate the field. The camera provides visual information for navigation and obstacle detection, while the IMU helps maintain a straight heading. Finally, the encoder assists with precise parking. Together, these systems allow Batmobile to independently perceive its surroundings, make decisions, and navigate the competition field.
+
+## Preliminary Work
+
+We found publicly available WRO repositories from previous teams especially useful during the early stages of our project. Their documentation gave us insight into how other teams approached robot design, programming, electronics, and problem solving. This allowed us to learn from their experiences and use their work as a starting point rather than having to develop every idea from scratch.
+
+As our project progressed, we wanted to contribute to the same community that helped us. We therefore focused on creating documentation that is practical, detailed, and easy to follow. By documenting both our successes and failures, we hope our work can provide a useful starting point for teams developing their own robots.
+
+# Mobility & Mechanical Design
+
+The chassis is built in a layered structure so that mounting space could be divided deliberately, with the first layer holding the heavier components and a second, elevated layer used to mount the electronics. This final version did not happen immediately; we went through many iterations to make it work.
+
+## First Iteration  LEGO Chassis
+
+**Starting Design**
+
+Our first chassis was constructed using LEGO Technic pieces to create a basic structure for initial testing. A LEGO differential was incorporated into the drivetrain system to transfer power to the wheels while allowing them to rotate at different speeds during turns.
+
+**Issues Identified**
+
+During testing, we encountered several mechanical problems. The wheels frequently came off the chassis during movement and turning. The steering system also had a limited Ackermann steering angle, which made it difficult for the robot to perform tight turns. This was especially problematic during parking, where greater steering angles were needed to maneuver within the available space. Additionally, the differential would come off the axle during operation, affecting the reliability of the drivetrain.
+
+<table>
+  <tr>
+    <td><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Batmobile%20Iteration%201/Top%20View.jpg"  width="200" height="400" /></td>
+    <td><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Batmobile%20Iteration%201/Bottom%20View.jpg" width="200" height="400" /></td>
+  </tr>
+  <tr>
+    <td><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Batmobile%20Iteration%201/Right%20View.jpg" width="200" height="400" /></td>
+    <td><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Batmobile%20Iteration%201/Left%20View.jpg" " width="200" height="400" /></td>
+  </tr>
+    <tr>
+    <td><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Batmobile%20Iteration%201/Front%20View.jpg" width="200" height="400" /></td>
+    <td><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Batmobile%20Iteration%201/Back%20View.jpg" " width="200" height="400" /></td>
+  </tr>
+</table>
+
+## Second Iteration  3D-Printed Chassis
+
+### Chassis Design
+
+We replaced the original LEGO chassis with a custom 3D-printed chassis designed specifically around our robot’s components. The chassis was divided into two separate layers to organize the mechanical and electronic components:
+
+- Layer 1: Battery, motor driver, servo, and Ackermann steering system.
+- Layer 2: Raspberry Pi 5, Raspberry Pi Pico 2, and IMU.
+
+This two-layer structure provided dedicated mounting areas, improved component organization, and made the overall system easier to assemble and maintain.
+
+### Issues Identified
+
+During testing, we found that placing the battery toward the rear of the chassis caused an uneven weight distribution. This shifted the centre of mass toward the rear, reducing the normal force acting on the front wheels.
+
+With less weight on the front wheels, the available front-wheel traction decreased, particularly during faster movement and sharp turns. At higher speeds, the front wheels would lose traction and lift slightly, which reduced steering effectiveness and made the robot less stable and predictable while turning.
+
+<table>
+  <tr>
+    <td><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Batmobile%20Iteration%202/Top%20View.jpg"  width="200" height="400" /></td>
+    <td><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Batmobile%20Iteration%202/Bottom%20View.jpg" width="200" height="400" /></td>
+  </tr>
+  <tr>
+    <td><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Batmobile%20Iteration%202/Front%20View.jpg" width="200" height="400" /></td>
+    <td><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Batmobile%20Iteration%202/Bottom%20View.jpg" " width="200" height="400" /></td>
+  </tr>
+    <tr>
+    <td><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Batmobile%20Iteration%202/Right%20View.jpg" width="200" height="400" /></td>
+    <td><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Batmobile%20Iteration%202/Left%20View.jpg" " width="200" height="400" /></td>
+  </tr>
+</table>
+
+## Third Iteration  Physical Fit
+
+### Chassis & Motor Fit
+
+The chassis was extended after measuring the physical DC motor and discovering that it was longer than the original CAD model. An access hole was added to allow easier access to the motor mounting screws during assembly and maintenance. Finally, the motor clamp geometry was adjusted to improve the fit, including reducing the clamp diameter by 0.25 mm for a tighter connection.
+
+### Chassis & Weight Distribution
+
+The front of the chassis was extended to create more space for parking and make the robot easier to maneuver. We also moved the battery closer to the centre of the chassis to balance the weight more evenly and improve stability.
+
+Additional space was made inside the chassis to fit the updated DC motor, which had different dimensions from the previous motor. We also replaced the previous motor driver with a new motor driver setup, so the layout of the internal components had to be adjusted to fit everything properly.
+
+### Mounting & Fastening
+
+The LEGO peg holes were increased by 0.1 mm after testing showed that the original holes were slightly too small. We also added dedicated mounting holes for the servo so it could be securely attached to the chassis.
+
+Before finalizing the design, we test-fitted each clamp with its corresponding physical component. This helped us check that the dimensions were correct and catch any fitting issues before final assembly.
+
+<table>
+  <tr>
+    <td><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Batmobile%20Iteration%202/Top%20View.jpg"  width="200" height="400" /></td>
+    <td><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Batmobile%20Iteration%202/Bottom%20View.jpg" width="200" height="400" /></td>
+  </tr>
+  <tr>
+    <td><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Batmobile%20Iteration%202/Front%20View.jpg" width="200" height="400" /></td>
+    <td><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Batmobile%20Iteration%202/Bottom%20View.jpg" " width="200" height="400" /></td>
+  </tr>
+    <tr>
+    <td><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Batmobile%20Iteration%202/Right%20View.jpg" width="200" height="400" /></td>
+    <td><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Batmobile%20Iteration%202/Left%20View.jpg" " width="200" height="400" /></td>
+  </tr>
+</table>
+
+### Accessibility & Wiring
+
+The chassis was designed to keep the wiring and electrical components accessible. This allowed us to easily reach the connections during testing, troubleshooting, and repairs without having to completely disassemble the robot.
+
+### Battery Placement
+
+Initially, the battery was positioned toward the rear of the robot, but this caused uneven weight distribution and shifted the centre of mass backward.
+
+To solve this, we moved the battery toward the centre of the chassis, which distributed the weight more evenly and improved stability and traction during turns.
+
+### Rear Wheel Bearings
+
+We added bearings to the rear wheel axles to reduce friction between the axles and the chassis. This allowed the rear wheels to rotate more smoothly and freely, reducing mechanical resistance and improving the robot's overall movement and consistency.
+
+### Screw Usage
+
+We switched to M3 screws throughout the assembly, replacing the larger fasteners used in earlier versions. This helped reduce the overall weight of the robot while still providing enough strength to securely hold the chassis.
+
+Using one standard screw size also made assembly and part sourcing simpler by reducing the number of different fasteners required.
+
+
+
+
+
+
+
+
+
+
+
 <!--
 HOW IMAGES WORK IN THIS FILE:
 Every place a picture belongs, you'll see a comment like this one (invisible on GitHub, only visible when editing the raw file) telling you exactly what filename/path to save the image under. Once you commit that image file to that exact path in your repo, the ![...](...) line right below the comment will automatically display it — no other changes needed. Comments like this one never render on GitHub.
