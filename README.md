@@ -1,6 +1,11 @@
 # Hello! We are Team Electrocute
 
-***Team Picture***
+<table>
+  <tr>
+    <td align="center"><strong>Team Picture</strong><br><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Team%20Picture.jpg" width="500
+                                                          00"></td>
+  </tr>
+</table>
 
 We are a team of three high school students participating in the **World Robot Olympiad (WRO) Future Engineers 2026** category.
 
@@ -143,16 +148,16 @@ Before finalizing the design, we test-fitted each clamp with its corresponding p
 
 <table>
   <tr>
-    <td><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Batmobile%20Iteration%202/Top%20View.jpg"  width="200" height="400" /></td>
-    <td><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Batmobile%20Iteration%202/Bottom%20View.jpg" width="200" height="400" /></td>
+    <td><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Batmobile%20Iteration%203/Top%20View.jpg"  width="200" height="400" /></td>
+    <td><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Batmobile%20Iteration%203/Bottom%20View.jpg" width="200" height="400" /></td>
   </tr>
   <tr>
-    <td><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Batmobile%20Iteration%202/Front%20View.jpg" width="200" height="400" /></td>
-    <td><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Batmobile%20Iteration%202/Bottom%20View.jpg" " width="200" height="400" /></td>
+    <td><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Batmobile%20Iteration%203/Right%20View.jpg" width="200" height="400" /></td>
+    <td><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Batmobile%20Iteration%203/Left%20View.jpg" " width="200" height="400" /></td>
   </tr>
     <tr>
-    <td><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Batmobile%20Iteration%202/Right%20View.jpg" width="200" height="400" /></td>
-    <td><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Batmobile%20Iteration%202/Left%20View.jpg" " width="200" height="400" /></td>
+    <td><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Batmobile%20Iteration%203/Front%20View.jpg" width="200" height="400" /></td>
+    <td><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Batmobile%20Iteration%203/Back%20View.jpg" " width="200" height="400" /></td>
   </tr>
 </table>
 
@@ -174,7 +179,31 @@ We added bearings to the rear wheel axles to reduce friction between the axles a
 
 We switched to M3 screws throughout the assembly, replacing the larger fasteners used in earlier versions. This helped reduce the overall weight of the robot while still providing enough strength to securely hold the chassis.
 
-Using one standard screw size also made assembly and part sourcing simpler by reducing the number of different fasteners required.
+Using one standard screw size also made assembly and part sourcing simpler by reducing the number of different fasteners required.## Drive System
+
+### Motor Selection
+
+### Motor 1: JGA25-371 620 RPM DC Motor
+
+add pic 
+
+### Specifications
+
+| Specification | Value |
+|---------------|-------|
+| Reduction Ratio | 9.6:1 |
+| Rated Voltage | 12V |
+| Speed | 620 RPM |
+| Current | 60 mA |
+| Torque | 0.1 kg·cm |
+| Speed | 450 RPM |
+| Current | 0.45 A |
+| Torque | 0.35 kg·cm |
+| Current | 1.3 A |
+
+The WRO track is flat, so we did not need the extra stall torque provided by the lower-RPM motors to handle slopes. Instead, we chose the 620 RPM motor because its higher top speed allows the robot to move faster during the open sections of the track, helping us achieve faster lap times.
+
+
 
 
 
