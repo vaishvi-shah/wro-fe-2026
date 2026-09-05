@@ -185,7 +185,11 @@ Using one standard screw size also made assembly and part sourcing simpler by re
 
 ### Motor 1: JGA25-371 620 RPM DC Motor
 
-add pic 
+<table>
+  <tr>
+    <td align="center"><strong></strong><br><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Robot%20Electronic%20Parts/JGA25-371%20620%20RPM%20DC%20Motor.png" width="300"></td>
+  </tr>
+</table> 
 
 ### Specifications
 
@@ -202,6 +206,134 @@ add pic
 | Current | 1.3 A |
 
 The WRO track is flat, so we did not need the extra stall torque provided by the lower-RPM motors to handle slopes. Instead, we chose the 620 RPM motor because its higher top speed allows the robot to move faster during the open sections of the track, helping us achieve faster lap times.
+
+## Drive System
+
+### Motor 2: Lower-RPM JGA25-371 Variant
+
+Add pictures
+
+| Specification | Lower-RPM JGA25-371 (~126–280 RPM) |
+|---|---|
+| Operating voltage | 6–24V (12V nominal) |
+| Free-run speed at 12V | ~126–280 RPM depending on ratio |
+| Stall torque at 12V | ~2.65–4.2 kg·cm depending on ratio |
+| Free-run current at 12V | ~46 mA |
+| Encoder | Integrated, ~12 counts/rev |
+| Main advantage | Higher torque margin for acceleration and obstacle-course maneuvering |
+| Main disadvantage | Lower top speed, resulting in slower lap times on the open/obstacle track |
+
+At a 1:34 ratio, the motor runs at approximately 126 RPM at 12V with roughly 4.2 kg·cm of stall torque, while a 201 RPM version provides approximately 2.65 kg·cm of stall torque.
+
+The higher gear reduction gives the robot more torque at the wheels, which improves acceleration and helps it overcome resistance. However, this also reduces the robot’s maximum speed. Since the WRO track is flat and has open sections where speed is important, we decided that the additional torque was not as useful as having a higher top speed.
+
+### Final Decision
+
+We chose the JGA25-371 620 RPM DC Motor because it provides a good balance of speed, torque, and size for our robot. The motor also has an integrated encoder, which allows us to measure its rotation and use that feedback for more accurate speed control.
+
+We paired it with the WLToys 144001 differential, which transfers power to the rear wheels while allowing the wheels to rotate at different speeds when turning. Overall, this setup gave us the speed and control we needed for the WRO track.
+
+| Risk | Mitigation |
+|---|---|
+| The stall torque for the specific 620 RPM gear ratio is not published by the vendor, so the value is estimated by scaling down from documented lower-RPM variants in the same JGA25-371 family. | Encoder feedback allows the motor's actual RPM to be monitored under load. A significant RPM drop without a corresponding increase in the drive command can indicate that the motor is approaching its available torque limit. This allows a potential torque shortfall to be identified during testing before competition. |
+
+### Steering, Servo & Differential Design
+
+### WLToys 144001
+
+Our first drivetrain used a LEGO differential to drive the rear wheels, allowing the wheels to rotate at different speeds during turns and reducing wheel scrub. However, the differential axle repeatedly came loose during sharper turns.
+
+To improve reliability and performance, we replaced the LEGO differential with a WLToys 144001 differential, which has a 2.5:1 reduction ratio. This provided a stronger connection, smoother movement, and more consistent turning while eliminating the axle-loosening issue.
+
+Add pictures of differential
+
+### Ackermann Steering
+
+Our initial LEGO robot used Ackermann steering, but when we switched to the custom chassis, the original steering geometry caused the robot to slip whenever it moved. We adjusted the Ackermann steering angle to better suit the new chassis geometry, reducing wheel slip and improving steering stability.
+
+The new linkage also made better use of the servo’s approximately 50°–130° operating range, rather than having its movement restricted by the previous LEGO chassis geometry.
+
+| Position | Angle |
+|---|---|
+| Center | 82° |
+| Full Left | Center - 45° |
+| Full Right | Center + 45° |
+
+This was necessary because the inside wheel travels along a smaller circle, while the outside wheel travels along a larger circle. By turning the wheels at different angles, the robot can follow the correct path through a corner and turn more smoothly without the tires dragging across the ground.
+
+| Risk | Mitigation |
+|---|---|
+| The steering range was originally limited to 0°–90° because of a servo bug discovered during Iteration 1. | We traced and corrected the bug, then tested the servo against the physical Ackermann linkage to determine its actual mechanical limits. |
+| Using a steering range beyond the mechanical limits could cause the linkage to bind or damage the components. | We verified a safe 50°–130° range through physical testing and permanently adopted it as the steering limit. Every steering formula in our software clamps its output to this range. |
+
+### Servo: MG90S Servo
+
+Add picture of servo
+
+### Specifications
+
+| Specification | Value |
+|---|---|
+| Rated Torque | 1.1 kgf/cm |
+| Speed | 0.15 sec/60° |
+| Voltage | 5V |
+| Gearing | Metal |
+| Type | Digital |
+
+We chose the servo because its compact size and PWM control made it well suited for steering. Its torque was enough to move the front wheels reliably and respond quickly to steering commands. It is also commonly used in robotics, so finding documentation and compatible mounting hardware was straightforward.
+
+After considering several steering options, we selected Ackermann steering geometry because it reduces tire slip and improves turning accuracy. The inside and outside front wheels turn at different angles, allowing each wheel to follow its own turning path. Our steering linkage is arranged so that the projected lines of the front wheels meet near the rear axle, creating the desired Ackermann geometry.
+
+# Power & Sensor Architecture
+
+## Component Placement
+
+Show 2 layers - Add pictures from Canva
+
+## Microcontroller Selection & Development
+
+The microcontroller handles the robot's low-level control, including the motor, steering servo, and IMU, while communicating with the Raspberry Pi 5 for higher-level processing and decision-making.
+
+### Iteration 1: micro:bit
+
+Add pics
+
+The micro:bit is a compact board based on the Nordic nRF52833. It includes an accelerometer, magnetometer, Bluetooth, LED matrix, and two buttons.
+
+- Advantage: Easy to program and quick to test.
+- Disadvantage: Limited motor and servo control.
+- Testing: The Raspberry Pi connection was unreliable.
+
+### Raspberry Pi Pico 2 W
+
+Add pics
+
+The Raspberry Pi Pico 2 W uses the RP2350 and has Wi-Fi, Bluetooth, and 26 GPIO pins. It does not have built-in sensors, but it can connect to many sensors and devices.
+
+- Main advantage: It has many GPIO pins and supports PWM, I²C, SPI, and UART.
+- Main disadvantage: It required more setup and testing to get all of our hardware communicating correctly.
+- Final solution: After testing and configuring the Pico 2 W, we were able to reliably control the motor and servo while communicating with the Raspberry Pi 5.
+
+## Raspberry Pi 5
+
+No second board was tested against the Raspberry Pi 5. It was selected at the beginning of the design because the robot's navigation system requires real-time processing of camera data for lane, wall, and pillar detection.
+
+| Specification | Raspberry Pi 5 (4GB) |
+|---|---|
+| CPU | Broadcom BCM2712, quad-core Cortex-A76 @ 2.4 GHz |
+| RAM | 4GB LPDDR4X |
+| Camera interface | MIPI CSI-2 |
+| Connectivity | Gigabit Ethernet, Wi-Fi, Bluetooth, USB 3.0 |
+| Cooling | Active cooling required under sustained load; heatsink and fan used |
+| BOM reference cost | $153.95 CAD |
+| Main advantage | Sufficient CPU headroom for real-time computer vision |
+| Main disadvantage | Highest power draw and cooling requirement of the computing boards |
+
+The Raspberry Pi 5 was chosen because the robot needs to process live camera video to detect lanes, walls, and pillars.
+
+- Main advantage: It has enough processing power to handle real-time camera and computer vision tasks.
+- Main disadvantage: The Raspberry Pi 5 has higher power consumption, which puts more demand on the robot's battery.
+- Cooling: Active cooling was added to prevent overheating during long periods of use.
 
 
 
