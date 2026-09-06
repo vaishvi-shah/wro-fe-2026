@@ -253,7 +253,39 @@ Add pictures
 At a 1:34 ratio, the motor runs at approximately 126 RPM at 12V with roughly 4.2 kg·cm of stall torque, while a 201 RPM version provides approximately 2.65 kg·cm of stall torque.
 
 The higher gear reduction gives the robot more torque at the wheels, which improves acceleration and helps it overcome resistance. However, this also reduces the robot’s maximum speed. Since the WRO track is flat and has open sections where speed is important, we decided that the additional torque was not as useful as having a higher top speed.
+## Motor Torque and Acceleration Calculations
 
+These calculations evaluate whether our **695 g robot** can reach the target wheel speed of **150 RPM within 0.5 seconds**, using a **JGA25-371 motor** with **2.5:1 gearing**.
+
+### Parameters
+
+| Parameter | Symbol | Value |
+|---|---|---:|
+| Robot mass | `m` | 0.695 kg |
+| Wheel diameter | `d` | 56 mm |
+| Wheel radius | `r` | 0.028 m |
+| Motor | — | JGA25-371, 620 RPM |
+| Motor stall torque | `Tₛ` | 0.0833 N·m |
+| Gear ratio | `R` | 2.5:1 |
+| Target wheel speed | `vₜ` | 150 RPM |
+| Acceleration time | `t` | 0.5 s |
+| Combined efficiency | `η` | 0.90 |
+| Rolling resistance coefficient | `Cᵣᵣ` | 0.03 |
+| Target linear velocity | `v` | 0.440 m/s |
+| Required acceleration | `a` | 0.880 m/s² |
+| Acceleration torque at wheel | `Tₐcc` | 0.0171 N·m |
+| Rolling resistance torque | `Tᵣᵣ` | 0.00573 N·m |
+| Total required wheel torque | `Tᵥ` | 0.0228 N·m |
+| Required motor torque | `Tₘ` | 0.0102 N·m |
+| Available motor torque @ 375 RPM | `T_available` | ≈ 0.0329 N·m |
+
+### Summary
+
+With the robot mass updated to **695 g**, the required motor torque to accelerate to **150 RPM in 0.5 seconds** is approximately **0.0102 N·m**.
+
+At the corresponding motor speed of **375 RPM**, the JGA25-371 motor provides approximately **0.0329 N·m** of available torque.
+
+Therefore, the motor provides **over 3× the calculated required torque**, giving the robot a sufficient torque margin for the target acceleration and speed.
 ### Final Decision
 
 We chose the JGA25-371 620 RPM DC Motor because it provides a good balance of speed, torque, and size for our robot. The motor also has an integrated encoder, which allows us to measure its rotation and use that feedback for more accurate speed control.
