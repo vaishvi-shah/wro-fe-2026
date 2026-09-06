@@ -29,7 +29,8 @@ We approached the development through several stages, beginning with idea genera
 Add summary video here.
 
 ### Obstacle Video
-Add obstacle video here.
+<video src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/videos/Obstacle%20Challenge%20Video.mp4" width="600" controls></video>
+
 
 ### Open Challenge Videos
 Add open challenge videos here.
