@@ -26,7 +26,8 @@ Our main objective was to create a dependable and effective system while showcas
 We approached the development through several stages, beginning with idea generation and research, followed by designing, building, testing, and refining our system. We also kept thorough records of our work to make it easier to share information, track changes, and maintain a consistent workflow throughout the project.
 
 ### Summary Video
-Add summary video here.
+
+[![](https://youtube.com)](https://www.youtube.com/watch?v=VKRCWfLhV6I)
 
 
 ### Open Challenge Videos
