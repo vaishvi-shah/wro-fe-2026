@@ -28,8 +28,11 @@ We approached the development through several stages, beginning with idea genera
 ### Summary Video
 
 
-[![Logo](photos/logo.png)](https://www.youtube.com/watch?v=VKRCWfLhV6I)
+<a href="https://www.youtube.com/watch?v=VKRCWfLhV6I">
+  <img src="photos/logo.png" alt="Watch video" width="600">
+</a>
 
+Click above to watch our video!
 
 
 ### Open Challenge Videos
