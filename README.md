@@ -223,7 +223,7 @@ With less weight on the front wheels, the available front-wheel traction decreas
   </tr>
     <tr>
     <td><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Batmobile%20Iteration%202/Right%20View.jpg" width="200" height="400" /></td>
-    <td><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Batmobile%20Iteration%202/Left%20View.jpg" " width="200" height="400" /></td>
+    <td><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Batmobile%20Iteration%202/Right%20View.jpg" " width="200" height="400" /></td>
   </tr>
 </table>
 
