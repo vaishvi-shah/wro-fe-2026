@@ -208,13 +208,10 @@ Using one standard screw size also made assembly and part sourcing simpler by re
 |---------------|-------|
 | Reduction Ratio | 9.6:1 |
 | Rated Voltage | 12V |
-| Speed | 620 RPM |
+| Speed | 477 RPM |
 | Current | 60 mA |
-| Torque | 0.1 kg·cm |
-| Speed | 450 RPM |
-| Current | 0.45 A |
-| Torque | 0.35 kg·cm |
-| Current | 1.3 A |
+| Torque | 0.22 kg·cm |
+| Current | 0.3 A |
 
 The WRO track is flat, so we did not need the extra stall torque provided by the lower-RPM motors to handle slopes. Instead, we chose the 620 RPM motor because its higher top speed allows the robot to move faster during the open sections of the track, helping us achieve faster lap times.
 
@@ -559,30 +556,6 @@ The Waveshare Pico-LCD-1.44 was added to provide on-robot status information and
 
 The XL4015 buck converter was selected to efficiently reduce the battery voltage while producing less heat than a linear regulator. Its roughly 90%+ efficiency helps reduce wasted energy, which is important for a battery-powered robot. The converter was also positioned away from the IMU and I²C wiring to reduce the effects of switching noise.
 
-### Comparison Table
-
-| Specification | MPU6050 | BNO055 |
-|---|---|---|
-| Degrees of freedom | 6-DOF | 9-DOF |
-| Accelerometer | 3-axis | 3-axis |
-| Gyroscope | 3-axis | 3-axis |
-| Magnetometer | No | 3-axis |
-| Sensor-fusion processor | Host microcontroller required | 32-bit Cortex-M0+ |
-| Maximum output rate | Up to 1000 Hz | — |
-| Fusion output rate | — | Approximately 100 Hz |
-| Orientation processing | Host microcontroller required | Integrated sensor fusion |
-| Current in 9-DOF fusion at 100 Hz | — | Approximately 12.3 mA |
-| Orientation output | — | Euler angles and quaternions |
-| Interfaces | — | I²C, UART |
-| Typical / BOM reference cost | Approximately $3–10 | $38.38 CAD |
-| Main advantage | Low cost and high output rate | Integrated sensor fusion and improved heading reference |
-| Main disadvantage | Yaw drift and additional sensor-fusion software | Higher cost and lower output rate |
-
-### Final Decision
-
-The BNO055 was selected because reliable heading information was more important for our robot than the MPU6050's lower cost and higher output rate. Our main reason for using an IMU was to maintain the robot's heading when the camera could not provide reliable information, such as during blind spots and parking turns. This made stable yaw information especially important.
-
-The BNO055's magnetometer provides a magnetic reference that helps reduce the effects of gyroscope drift, while its onboard sensor fusion handles much of the orientation processing for us. Although the BNO055 costs more and has a lower output rate, we accepted these trade-offs because it gave us simpler software and more reliable heading control.
 
 # Final Circuit Architecture
 
@@ -712,8 +685,17 @@ All components share a common ground, which provides the same electrical referen
 
 ## Power Distribution Diagram: Nominal Values
 
-- Add power distribution diagram here.
-- Add second power distribution image here.
+<table>
+  <tr>
+    <td align="center"><strong></strong><br><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Power%20Distribution%20Diagram.png" width="600"></td>
+  </tr>
+</table> 
+
+<table>
+  <tr>
+    <td align="center"><strong></strong><br><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Power%20Distribution%20Diagram(2).png" width="600"></td>
+  </tr>
+</table> 
 
 ## Nominal Current Draw for Each Part
 
