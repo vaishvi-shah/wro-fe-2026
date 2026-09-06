@@ -27,9 +27,9 @@ We approached the development through several stages, beginning with idea genera
 
 ### Summary Video
 
-Here is my project text.
 
-[![](https://youtube.com)](https://youtube.com)
+
+[![](logo.jpg)](https://youtube.com)
 
 
 
