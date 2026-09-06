@@ -847,7 +847,7 @@ This helps keep the steering within the Ackermann steering range.
 - The first detected colour locks the direction for the run.
 - `SAFE_TURN_AREA` sets the minimum area needed before the robot makes a turn, helping it avoid turning too early in different course configurations.
 
-```text
+
 IF left_area > SAFE_TURN_AREA:
     turn(direction)
 
@@ -942,3 +942,4 @@ To run the program without a connected display, ensure that the `SHOW_VID` varia
 
 ```python
 SHOW_VID = False
+```text
