@@ -142,6 +142,13 @@ With less weight on the front wheels, the available front-wheel traction decreas
 
 ## Third Iteration  Physical Fit
 
+<table>
+  <tr>
+    <td align="center"><strong>Chassis Base</strong><br><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/models/Model%20Images/Chassis%20Base.png" width="500
+                                                          00"></td>
+  </tr>
+</table>
+
 ### Chassis & Motor Fit
 
 The chassis was extended after measuring the physical DC motor and discovering that it was longer than the original CAD model. An access hole was added to allow easier access to the motor mounting screws during assembly and maintenance. Finally, the motor clamp geometry was adjusted to improve the fit, including reducing the clamp diameter by 0.25 mm for a tighter connection.
@@ -488,6 +495,11 @@ The main advantage of using a wide-angle camera is its versatility and coverage.
 
 # Parking: TOF Sensor vs. Motor Encoder
 
+<table>
+  <tr>
+    <td align="center"><strong></strong><br><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Robot%20Electronic%20Parts/TOF%20Sensor.png" width="300"></td>
+  </tr>
+</table> 
 
 For parking, we considered two options: a VL53L0X Time-of-Flight (TOF) sensor and the motor encoder already built into our JGA25-371 motor. We compared them based on accuracy, reliability, hardware requirements, and how easily they could be integrated into our existing system.
 
@@ -513,8 +525,55 @@ We selected the motor encoder for parking because the parking area provides a re
 
 This allowed us to keep the BNO055 as our primary I²C sensor while using the existing motor encoder for the distance information needed during parking. Although the encoder can introduce some error from wheel slip, the simpler setup and reuse of existing hardware made it the better choice for our robot.
 
+#### Control, Display & Support System
+
+The robot uses several supporting electronic components to improve the reliability, organization, and usability of the overall system. These components handle connections between the main electronics, provide information during testing, and regulate power for the robot’s different systems.
+
+The Waveshare Servo Driver Board was selected because it plugs directly into the Raspberry Pi Pico 2 W and provides convenient connections for the servo and motor driver. This reduces the number of loose jumper-wire connections, making the wiring more compact, secure, and easier to manage.
+
+The Waveshare Pico-LCD-1.44 was added to provide on-robot status information and debugging without requiring a laptop. Its 128 × 128 SPI display and four buttons allow the team to view robot information and run test routines directly on the robot during testing.
+
+The XL4015 buck converter was selected to efficiently reduce the battery voltage while producing less heat than a linear regulator. Its roughly 90%+ efficiency helps reduce wasted energy, which is important for a battery-powered robot. The converter was also positioned away from the IMU and I²C wiring to reduce the effects of switching noise.
+
+### Comparison Table
+
+| Specification | MPU6050 | BNO055 |
+|---|---|---|
+| Degrees of freedom | 6-DOF | 9-DOF |
+| Accelerometer | 3-axis | 3-axis |
+| Gyroscope | 3-axis | 3-axis |
+| Magnetometer | No | 3-axis |
+| Sensor-fusion processor | Host microcontroller required | 32-bit Cortex-M0+ |
+| Maximum output rate | Up to 1000 Hz | — |
+| Fusion output rate | — | Approximately 100 Hz |
+| Orientation processing | Host microcontroller required | Integrated sensor fusion |
+| Current in 9-DOF fusion at 100 Hz | — | Approximately 12.3 mA |
+| Orientation output | — | Euler angles and quaternions |
+| Interfaces | — | I²C, UART |
+| Typical / BOM reference cost | Approximately $3–10 | $38.38 CAD |
+| Main advantage | Low cost and high output rate | Integrated sensor fusion and improved heading reference |
+| Main disadvantage | Yaw drift and additional sensor-fusion software | Higher cost and lower output rate |
+
+### Final Decision
+
+The BNO055 was selected because reliable heading information was more important for our robot than the MPU6050's lower cost and higher output rate. Our main reason for using an IMU was to maintain the robot's heading when the camera could not provide reliable information, such as during blind spots and parking turns. This made stable yaw information especially important.
+
+The BNO055's magnetometer provides a magnetic reference that helps reduce the effects of gyroscope drift, while its onboard sensor fusion handles much of the orientation processing for us. Although the BNO055 costs more and has a lower output rate, we accepted these trade-offs because it gave us simpler software and more reliable heading control.
+
+# Final Circuit Architecture
 
 
+<table>
+  <tr>
+    <td align="center"><strong></strong><br><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/Elec/3D%20Circuit%20Schematic.png" width="600"></td>
+  </tr>
+</table> 
+
+<table>
+  <tr>
+    <td align="center"><strong></strong><br><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/Elec/Circuit%20Diagram.png" width="600"></td>
+  </tr>
+</table> 
 
 
 
