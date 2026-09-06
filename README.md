@@ -795,11 +795,6 @@ $$
 - The calculated 3.1-hour runtime is much longer than a WRO competition run, which typically lasts only a few minutes per heat. This gives the robot a large margin for real-world conditions such as voltage sag, increased motor load, stall current, and temporary steering-current spikes.
 - At an estimated 0.97 A, the robot uses only about 32% of the battery's 1C continuous-discharge limit. This means the battery was not selected to operate close to its maximum current rating.
 
-## Why This Matters
-
-- The Raspberry Pi 5 is the dominant load on the 5 V rail. At approximately 800 mA, it draws more than three times the current of the entire Pico channel combined. This means it accounts for most of the electronics power consumption, even though it is not directly responsible for moving the robot.
-- The calculated 3.1-hour runtime is much longer than a WRO competition run, which typically lasts only a few minutes per heat. This gives the robot a large margin for real-world conditions such as voltage sag, increased motor load, stall current, and temporary steering-current spikes.
-- At an estimated 0.97 A, the robot uses only about 32% of the battery's 1C continuous-discharge limit. This means the battery was not selected to operate close to its maximum current rating.
 
 # Programming Logic
 
@@ -832,7 +827,11 @@ $$
 steering\_value = 0.7 \times gyro\_steer + 0.3 \times cam\_steer
 $$
 
-- Add image here.
+<table>
+  <tr>
+    <td align="center"><strong></strong><br><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/steering%20flow%20chart.png" width="600"></td>
+  </tr>
+</table> 
 
 ### 3. Clamp Steering
 
@@ -852,7 +851,92 @@ This helps keep the steering within the Ackermann steering range.
 IF left_area > SAFE_TURN_AREA:
     turn(direction)
 
+## Obstacle Challenge Code
 
+The obstacle avoidance section works alongside wall following, using colour detection to find red and green blocks and steer around them instead of through them. The algorithm is as follows:
+
+<table>
+  <tr>
+    <td align="center"><strong></strong><br><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/State%20Mermaid.png" width="600"></td>
+  </tr>
+</table>
+
+1. **Detect an obstacle**
+   - A dedicated `middle_frame` ROI spanning the full frame width watches for red and green contours.
+   - An obstacle is detected when either colour exceeds the detection threshold:
+     
+     `obs_on_screen = red_area > 100 or green_area > 100`
+     
+   - The robot enters `AVOIDING_OBSTACLE` from `WALL_FOLLOW` as soon as either area crosses the threshold, unless a turn is already pending.
+
+2. **Select the obstacle to react to**
+   - Contours are filtered to real blobs with an area greater than `400 px` across both colours.
+   - They are sorted by how close their bottom edge is to the bottom of the frame, so the nearest obstacle is selected:
+     
+     `closest_contour, obstacle_color = all_contours[0]`
+
+3. **Find the gap to steer through**
+   - The pass-side corner of the obstacle's bounding box is used:
+     - **GREEN:** bottom-left corner, since the robot passes on the left.
+     - **RED:** bottom-right corner, since the robot passes on the right.
+   - A band of rows around the obstacle's own row is searched in the **opposite wall's ROI** for the nearest black pixel, stored as `black_wall_x`.
+   - The target point is calculated as the midpoint between the obstacle's corner and the detected wall position.
+
+4. **Steer toward the gap**
+   - The camera error is calculated relative to the centre of the frame:
+     
+     `cam_error = target_x - frame_center_x`
+     
+   - Steering is calculated using a proportional controller:
+     
+     `steering = DEFAULT_STEER_ANGLE + KP_OBSTACLE * cam_error`
+     
+   - The steering angle is limited to a safe range:
+     
+     `steering = max(45, min(135, steering))`
+     
+   - This is a **camera-only steering method**, with no gyro blending.
+
+<table>
+  <tr>
+    <td align="center"><strong></strong><br><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/obs_ss.png" width="600"></td>
+  </tr>
+</table> 
+
+5. **Safety check — too close to the wall**
+   - If the obstacle is on the "wrong side" and its bottom edge has passed **75% of the ROI height**, the obstacle is considered too close.
+   - The robot enters the `REVERSING` state.
+   - It backs up for **1 second** before attempting to avoid the obstacle again.
+
+6. **Check if the obstacle is cleared**
+   - The robot checks whether it has reached the desired position beside the obstacle:
+     
+     `obstacle_reached = |cam_error| < OBSTACLE_REACHED_PX and |cam_error_y| < OBSTACLE_REACHED_PY4`
+     
+   - This ensures that the robot has reached the desired position beside the obstacle.
+   - The obstacle is considered avoided when it is either completely out of view or `obstacle_reached` is true while the obstacle is still visible.
+   - Once cleared, the robot returns to `WALL_FOLLOW`.
+
+
+<table>
+  <tr>
+    <td align="center"><strong></strong><br><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/obstacle%20flowchart.png" width="600"></td>
+  </tr>
+</table> 
+
+### Parking States
+
+`OUT_PARKING` and `IN_PARKING` are both parking states that occur once during the challenge:
+
+- `OUT_PARKING` occurs once at the **very beginning**.
+- `IN_PARKING` occurs once at the **very end**.
+
+### Running the Program
+
+To run the program without a connected display, ensure that the `SHOW_VID` variable is set to `False`.
+
+```python
+SHOW_VID = False
 
 
 
