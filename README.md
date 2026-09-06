@@ -936,6 +936,7 @@ The obstacle avoidance section works alongside wall following, using colour dete
 ### 2. Select the obstacle to react to
 
 - Contours are filtered to real blobs with an area greater than `400 px` across both colours.
+- In earlier iterations, we measured closeness based on obstacle size, but closer obstacles were sometimes cut off from view, making their detected area smaller. Using the position of the bottom edge instead made this approach more reliable.
 - They are sorted by how close their bottom edge is to the bottom of the frame, so the nearest obstacle is selected:
 
 `closest_contour, obstacle_color = all_contours[0]`
@@ -945,8 +946,10 @@ The obstacle avoidance section works alongside wall following, using colour dete
 - The pass-side corner of the obstacle's bounding box is used:
   - **GREEN:** bottom-left corner, since the robot passes on the left.
   - **RED:** bottom-right corner, since the robot passes on the right.
-- A band of rows around the obstacle's own row is searched in the **opposite wall's ROI** for the nearest black pixel, stored as `black_wall_x`.
-- The target point is calculated as the midpoint between the obstacle's corner and the detected wall position.
+- In an earlier iteration, a band of rows around the obstacle's own row was searched in the **opposite wall's ROI** for the nearest black pixel, stored as `black_wall_x`.
+- This approach proved unreliable because black pixels are present throughout the course, so the detected wall position could change depending on the robot's angle and the surrounding black lines. This made the target point inconsistent and could cause the robot to steer incorrectly.
+- In the new approach, the algorithm plots a target point beside the obstacle based on its position. When the obstacle is closer, the target point is placed farther away from the obstacle, and when the obstacle is farther away, the target point is placed closer to it.
+- This creates a more consistent and predictable gap for the robot to steer through without relying on the position of the black walls or the robot's angle.
 
 ### 4. Steer toward the gap
 
