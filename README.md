@@ -1,4 +1,4 @@
-# Hello! We are Team Electrocute
+# Hello! We are Team ElectroCute
 
 <table align="center">
   <tr>
