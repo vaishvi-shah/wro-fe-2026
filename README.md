@@ -616,15 +616,7 @@ we made along the way.
 
 ## Summary Video
 
-+ obstacle/open videos
-
-<!--
-IMAGE: Summary video — this isn't a static picture, it's a video link. On GitHub you can't embed a playable video directly in a README, so the standard approach is either:
-1. A clickable thumbnail: ![Watch the video](video/img/summary_thumbnail.png) wrapped in a link to the YouTube URL, e.g.
-   [![Watch the video](video/img/summary_thumbnail.png)](https://youtube.com/your-video-link)
-2. Or just a plain link: [Watch our summary video](https://youtube.com/your-video-link)
-Save a thumbnail image (if using option 1) to: video/img/summary_thumbnail.png
--->
+[![](photos/logo.png)](https://www.youtube.com/watch?v=VKRCWfLhV6I)
 
 ## Meet The Robot
 
