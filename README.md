@@ -577,6 +577,188 @@ The BNO055's magnetometer provides a magnetic reference that helps reduce the ef
   </tr>
 </table> 
 
+## Main Battery: 12V Li-ion Pack
+
+<table>
+  <tr>
+    <td align="center"><strong></strong><br><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Robot%20Electronic%20Parts/12V%20Lithium%20Battery.png" width="600"></td>
+  </tr>
+</table> 
+
+A 12V Li-ion battery pack was selected to provide the required voltage for the drivetrain without needing a step-up converter. The battery provides enough capacity for the robot while fitting within the chassis without adding excessive weight.
+
+The 12V output matches the nominal voltage of the drive motor and L298N motor driver, avoiding the added complexity and power losses of a step-up converter. The Li-ion chemistry also provides high energy density, allowing the required capacity to fit within the robot. Finally, the battery is mounted low and centrally in the chassis to improve stability and distribute the weight more evenly across the four wheels.
+
+| Specification | 12V Li-ion Battery Pack |
+|---|---|
+| Chemistry | Lithium-ion |
+| Nominal pack voltage | 12V |
+| Rated capacity | 8800 mAh |
+| BOM reference cost | $27.99 CAD |
+| Main advantage | Matches the drivetrain's 12V nominal voltage |
+| Main disadvantage | Requires appropriate protection and charging procedures |
+
+## Steering Servo: MG90S vs. SG90
+
+### SG90
+
+<table>
+  <tr>
+    <td align="center"><strong></strong><br><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Robot%20Electronic%20Parts/SG90.png" width="600"></td>
+  </tr>
+</table> 
+
+
+The SG90 is a low-cost micro servo with plastic internal gears. It is easy to find and suitable for lightweight applications, but the plastic gears are more likely to strip under repeated stall or impact loads. This is a concern for steering because the servo can experience sudden loads when a wheel contacts a wall, pillar, or other obstacle.
+
+### MG90S
+
+<table>
+  <tr>
+    <td align="center"><strong></strong><br><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Robot%20Electronic%20Parts/MG90S.png" width="600"></td>
+  </tr>
+</table> 
+
+The MG90S is similar in size to the SG90 but uses metal internal gears, making it better suited for the repeated mechanical loads experienced by the steering system.
+
+### Comparison Table
+
+| Specification | SG90 | MG90S |
+|---|---|---|
+| Gear material | Plastic | Metal |
+| Stall torque | Approximately 1.5–1.8 kg·cm at 4.8–6V | Approximately 1.8–2.2 kg·cm at 4.8–6V |
+| Operating voltage | 4.8–6V | 4.8–6V |
+| BOM reference cost | $4.99 CAD | $17.02 CAD per pair |
+| Main advantage | Very low cost and easy availability | Greater resistance to repeated stall and impact loads |
+| Main disadvantage | Plastic gears can strip under heavy loading | Higher cost than the SG90 |
+
+The MG90S was selected because steering can expose the servo to sudden mechanical loads. Its metal gear train provides greater durability than the plastic gears in the SG90. The higher cost was accepted because steering reliability was more important than saving a small amount on a component that could cause a mechanical failure during a run.
+
+## Chassis Material: 3D-Printed PLA-CF
+
+The chassis needs sufficient stiffness to maintain consistent camera, sensor, and steering geometry while the robot is moving. PLA-CF was selected because it provides this stiffness while still allowing the team to quickly modify and reprint parts as the design changed. The multi-layer structure also separates the high-current drivetrain components from the more sensitive sensing and computing electronics.
+
+| Specification | 3D-Printed Chassis (PLA-CF) |
+|---|---|
+| Material | PLA reinforced with chopped carbon fibre |
+| Structure | Multi-layer frame connected with brass standoffs |
+| Reference cost | Approximately $25 CAD per spool |
+| Main advantage | Stiff, relatively lightweight, and printable in-house |
+| Main disadvantage | More abrasive on nozzles and requires a hardened nozzle |
+
+## Wheels: LEGO Wheels and Tires
+
+<table>
+  <tr>
+    <td align="center"><strong></strong><br><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/LEGO%20Wheels.png" width="600"></td>
+  </tr>
+</table> 
+
+Using LEGO wheels reduced the amount of mechanical design and testing required for the drivetrain. This allowed the team to focus development time on the chassis, steering geometry, and motor system. The main trade-off is that wheel size and tire options are limited to what is available within the LEGO ecosystem.
+
+| Specification | LEGO Wheels, Axles and Connectors |
+|---|---|
+| Tire material | Rubber tire over a plastic hub |
+| Axle interface | Standard LEGO Technic cross-axle |
+| Reference cost | Approximately $50 CAD |
+| Main advantage | Off-the-shelf wheel and axle system with reliable traction |
+| Main disadvantage | Limited selection of wheel sizes compared with a custom system |
+
+# Power System Architecture
+
+
+## Two Board Architecture
+
+The Raspberry Pi 5 acts as the robot’s main decision-making computer. It processes the camera input and runs the higher-level logic in Python, including lane following, obstacle avoidance, and the state machine. The Pi 5 sends movement commands to the Raspberry Pi Pico 2 W, which acts as the real-time controller.
+
+The Pico runs a single program directly from flash instead of a full operating system, allowing it to handle low-latency control tasks reliably. It reads the BNO055 IMU directly and converts commands from the Pi 5 into low-level signals for the MG95S servo and L298N motor driver. The Pico can also send status information back to the Pi 5, allowing the two boards to communicate during operation.
+
+### Why Two Boards?
+
+The split is based on the strengths of each board:
+
+- Pi 5 → High-level processing: camera processing, decision logic, and state machine.
+- Pico 2 W → Real-time control: IMU reading, PWM generation, servo control, and motor commands.
+
+This prevents heavy camera processing from interfering with the timing-sensitive steering and motor control.
+
+### Power Distribution
+
+The L298N motor driver receives power from the external battery and supplies the required current to the motor, since the Raspberry Pi Pico 2 W cannot safely power the motor directly. The Pico and other electronics use their appropriate regulated power supplies, while the motor receives power through the L298N.
+
+All components share a common ground, which provides the same electrical reference for the control signals between the Raspberry Pi 5, Pico, and motor driver. This allows the control signals to be read reliably across the system.
+
+## Power Distribution Diagram: Nominal Values
+
+- Add power distribution diagram here.
+- Add second power distribution image here.
+
+## Nominal Current Draw for Each Part
+
+| Part | Channel | Nominal Draw | Basis |
+|---|---|---|---|
+| Raspberry Pi 5 (board) | Pi 5 | ~800 mA @ 5 V | Idle draw is roughly 4 to 5 W, increasing toward 12 W under heavy CPU/USB load. |
+| Sainsmart 5MP Camera | Pi 5 | ~250 mA | OV5647-based Raspberry Pi camera modules are commonly rated around 300 mA peak. The estimated running draw is slightly below this. |
+| Encoder (Hall-effect) | Pi 5 | ~10 mA | Two-channel Hall-effect encoders on small gearmotors draw a maximum of about 10 mA. |
+| Pi 5 channel total | — | ≈1.06 A | Sum of the three components above. |
+| Raspberry Pi Pico 2 W (board) | Pico | ~100 mA @ 5 V | Community measurements for Pico/Pico W boards are typically in the 80 to 130 mA range. |
+| MG90S Servo | Pico | ~150 mA average | These servos draw about 10 mA when idle and 120 to 250 mA while moving, with a stall current of up to about 800 mA. |
+| BNO055 IMU | Pico | ~12 mA | The maximum total supply current for the BNO055 is 12.3 mA. |
+| L298N Logic Pin | Pico | ~36 mA | The L298N module's logic supply draws 0 to 36 mA. |
+| Pico channel total | — | ≈0.30 A | Sum of the four components above. |
+| Buck Converter Output | Both channels | ≈1.36 A | Sum of the Pi 5 and Pico channel totals. |
+| DC Gear Motor | L298N | ~300 mA nominal (estimated) | A 12 V JGA25-370-style gearmotor draws about 50 mA at no load and up to 1200 mA when stalled. |
+
+## Power Budget
+
+### 5 V Power Requirement
+
+The 5 V rail powers the Raspberry Pi 5 and Raspberry Pi Pico 2 W. The connected electronics require approximately 6.8 W. Accounting for approximately 85% buck converter efficiency, the battery must supply:
+
+$$
+P_{battery} = \frac{6.8W}{0.85} \approx 8.0W
+$$
+
+### Motor Power
+
+The drive motor draws approximately 0.300 A at 12 V through the L298N motor driver.
+
+$$
+P_{motor} = 12V \times 0.300A = 3.6W
+$$
+
+Therefore, the estimated total system power is:
+
+$$
+P_{total} = 8.0W + 3.6W = 11.6W
+$$
+
+### Total System Requirement
+
+At a nominal battery voltage of 12 V, the total system power corresponds to approximately:
+
+$$
+I_{battery} = \frac{11.6W}{12V} \approx 0.97A
+$$
+
+For a 3.0 Ah battery rated for 1C continuous discharge, the maximum continuous current is:
+
+$$
+I_{max} = 3.0Ah \times 1C = 3.0A
+$$
+
+The theoretical continuous runtime is:
+
+$$
+t = \frac{3.0Ah}{0.97A} \approx 3.1\text{ hours}
+$$
+
+## Why This Matters
+
+- The Raspberry Pi 5 is the dominant load on the 5 V rail. At approximately 800 mA, it draws more than three times the current of the entire Pico channel combined. This means it accounts for most of the electronics power consumption, even though it is not directly responsible for moving the robot.
+- The calculated 3.1-hour runtime is much longer than a WRO competition run, which typically lasts only a few minutes per heat. This gives the robot a large margin for real-world conditions such as voltage sag, increased motor load, stall current, and temporary steering-current spikes.
+- At an estimated 0.97 A, the robot uses only about 32% of the battery's 1C continuous-discharge limit. This means the battery was not selected to operate close to its maximum current rating.
+
 
 
 
