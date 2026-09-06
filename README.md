@@ -219,6 +219,12 @@ The WRO track is flat, so we did not need the extra stall torque provided by the
 
 ### Motor 2: Lower-RPM JGA25-371 Variant
 
+<table>
+  <tr>
+    <td align="center"><strong></strong><br><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Robot%20Electronic%20Parts/Lower-RPM%20JGA25-371%20Variant.png" width="300"></td>
+  </tr>
+</table> 
+
 Add pictures
 
 | Specification | Lower-RPM JGA25-371 (~126–280 RPM) |
@@ -249,6 +255,12 @@ We paired it with the WLToys 144001 differential, which transfers power to the r
 
 ### WLToys 144001
 
+<table>
+  <tr>
+    <td align="center"><strong></strong><br><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Robot%20Electronic%20Parts/WLToys%20144001.png" width="300"></td>
+  </tr>
+</table> 
+
 Our first drivetrain used a LEGO differential to drive the rear wheels, allowing the wheels to rotate at different speeds during turns and reducing wheel scrub. However, the differential axle repeatedly came loose during sharper turns.
 
 To improve reliability and performance, we replaced the LEGO differential with a WLToys 144001 differential, which has a 2.5:1 reduction ratio. This provided a stronger connection, smoother movement, and more consistent turning while eliminating the axle-loosening issue.
@@ -276,6 +288,12 @@ This was necessary because the inside wheel travels along a smaller circle, whil
 
 ### Servo: MG90S Servo
 
+<table>
+  <tr>
+    <td align="center"><strong></strong><br><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Robot%20Electronic%20Parts/MG90S%20Micro%20Servo.png" width="300"></td>
+  </tr>
+</table> 
+
 Add picture of servo
 
 ### Specifications
@@ -296,7 +314,16 @@ After considering several steering options, we selected Ackermann steering geome
 
 ## Component Placement
 
-Show 2 layers - Add pictures from Canva
+<table>
+  <tr>
+    <td><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Electronic%20Part%20Position/Top%20View.png"  width="400" height="600" /></td>
+    <td><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Electronic%20Part%20Position/Right%20View.png" width="400" height="600" /></td>
+  </tr>
+  <tr>
+    <td><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Electronic%20Part%20Position/Left%20View.png" width="400" height="600" /></td>
+    <td><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Electronic%20Part%20Position/Back%20View.png" " width="400" height="600" /></td>
+  </tr>
+</table> 
 
 ## Microcontroller Selection & Development
 
@@ -304,7 +331,11 @@ The microcontroller handles the robot's low-level control, including the motor, 
 
 ### Iteration 1: micro:bit
 
-Add pics
+<table>
+  <tr>
+    <td align="center"><strong></strong><br><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Robot%20Electronic%20Parts/microbit.png" width="300"></td>
+  </tr>
+</table> 
 
 The micro:bit is a compact board based on the Nordic nRF52833. It includes an accelerometer, magnetometer, Bluetooth, LED matrix, and two buttons.
 
@@ -314,7 +345,11 @@ The micro:bit is a compact board based on the Nordic nRF52833. It includes an ac
 
 ### Raspberry Pi Pico 2 W
 
-Add pics
+<table>
+  <tr>
+    <td align="center"><strong></strong><br><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Robot%20Electronic%20Parts/Raspberry%20Pi%20Pico%202%20W.png" width="300"></td>
+  </tr>
+</table> 
 
 The Raspberry Pi Pico 2 W uses the RP2350 and has Wi-Fi, Bluetooth, and 26 GPIO pins. It does not have built-in sensors, but it can connect to many sensors and devices.
 
@@ -323,6 +358,12 @@ The Raspberry Pi Pico 2 W uses the RP2350 and has Wi-Fi, Bluetooth, and 26 GPIO 
 - Final solution: After testing and configuring the Pico 2 W, we were able to reliably control the motor and servo while communicating with the Raspberry Pi 5.
 
 ## Raspberry Pi 5
+
+<table>
+  <tr>
+    <td align="center"><strong></strong><br><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Robot%20Electronic%20Parts/Raspberry%20Pi%205.png" width="300"></td>
+  </tr>
+</table> 
 
 No second board was tested against the Raspberry Pi 5. It was selected at the beginning of the design because the robot's navigation system requires real-time processing of camera data for lane, wall, and pillar detection.
 
@@ -342,6 +383,131 @@ The Raspberry Pi 5 was chosen because the robot needs to process live camera vid
 - Main advantage: It has enough processing power to handle real-time camera and computer vision tasks.
 - Main disadvantage: The Raspberry Pi 5 has higher power consumption, which puts more demand on the robot's battery.
 - Cooling: Active cooling was added to prevent overheating during long periods of use.
+
+#### MPU6050
+
+<table>
+  <tr>
+    <td align="center"><strong></strong><br><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Robot%20Electronic%20Parts/MPU6050.png" width="300"></td>
+  </tr>
+</table> 
+
+The MPU6050 is a 6-DOF IMU containing a 3-axis accelerometer and 3-axis gyroscope, but it does not include a magnetometer. It provides raw accelerometer and gyroscope measurements rather than directly providing a fully processed orientation estimate. Its main advantages are its low cost, small size, and high output rate of up to 1000 Hz, which would provide more than enough measurements for a fast steering control loop.
+
+#### BNO055
+
+<table>
+  <tr>
+    <td align="center"><strong></strong><br><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Robot%20Electronic%20Parts/BNO055%20IMU.png" width="300"></td>
+  </tr>
+</table> 
+
+The BNO055 is a 9-DOF IMU containing a 3-axis accelerometer, 3-axis gyroscope, and 3-axis magnetometer. Instead of requiring the Raspberry Pi Pico 2 W to perform all of the sensor-fusion calculations, the BNO055 can provide ready-to-use orientation data. The main trade-off is that the BNO055 is more expensive and has a lower output rate than the MPU6050.
+
+### Comparison Table
+
+| Specification | MPU6050 | BNO055 |
+|---|---|---|
+| Degrees of freedom | 6-DOF | 9-DOF |
+| Accelerometer | 3-axis | 3-axis |
+| Gyroscope | 3-axis | 3-axis |
+| Magnetometer | No | 3-axis |
+| Sensor-fusion processor | Host microcontroller required | 32-bit Cortex-M0+ |
+| Maximum output rate | Up to 1000 Hz | — |
+| Fusion output rate | — | Approximately 100 Hz |
+| Orientation processing | Host microcontroller required | Integrated sensor fusion |
+| Current in 9-DOF fusion at 100 Hz | — | Approximately 12.3 mA |
+| Orientation output | — | Euler angles and quaternions |
+| Interfaces | — | I²C, UART |
+| Typical / BOM reference cost | Approximately $3–10 | $38.38 CAD |
+| Main advantage | Low cost and high output rate | Integrated sensor fusion and improved heading reference |
+| Main disadvantage | Yaw drift and additional sensor-fusion software | Higher cost and lower output rate |
+
+### Final Decision
+
+The BNO055 was selected because reliable heading information was more important for our robot than the MPU6050's lower cost and higher output rate. Our main reason for using an IMU was to maintain the robot's heading when the camera could not provide reliable information, such as during blind spots and parking turns. This made stable yaw information especially important.
+
+The BNO055's magnetometer provides a magnetic reference that helps reduce the effects of gyroscope drift, while its onboard sensor fusion handles much of the orientation processing for us. Although the BNO055 costs more and has a lower output rate, we accepted these trade-offs because it gave us simpler software and more reliable heading control.
+
+# Motor Driver Iterations
+
+### Iteration 1 — DRV8871
+
+<table>
+  <tr>
+    <td align="center"><strong></strong><br><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Robot%20Electronic%20Parts/DRV8871.png" width="300"></td>
+  </tr>
+</table> 
+
+We initially chose the DRV8871 because it was compact, efficient, and its single-channel design was sufficient for our one-motor drivetrain. During testing, we found that it could not handle the voltage and current conditions from our 12 V motor system and eventually burned out.
+
+### Iteration 2 — L298N
+
+<table>
+  <tr>
+    <td align="center"><strong></strong><br><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Robot%20Electronic%20Parts/L298N%20Motor%20Driver.png" width="300"></td>
+  </tr>
+</table> 
+
+We replaced the DRV8871 with an L298N. The L298N is a dual H-bridge, so the second motor channel is unused in our application. It is larger and has a voltage drop of approximately 1.5–2 V, meaning our motor receives around 10–10.5 V from the nominal 12 V battery. However, it handled our motor's operating conditions reliably during testing, so we selected it for the final robot.
+
+### Comparison Table
+
+| Specification | DRV8871 | L298N |
+|---|---|---|
+| Motor channels | 1 | 2 |
+| Driver type | Single H-bridge | Dual H-bridge |
+| Voltage drop | Low | Approximately 1.5–2 V |
+| Motor voltage from 12 V battery | Up to motor supply voltage | Approximately 10–10.5 V |
+| Thermal management | Integrated thermal protection | Heatsink / high thermal mass |
+| BOM reference cost | $6.99 CAD | $11.99 CAD |
+| Main advantage | Compact, efficient, and single-channel | Reliable under our tested conditions |
+| Main disadvantage | Could not handle our tested 12 V system | Larger size and higher voltage loss |
+
+### Final Decision
+
+We selected the L298N as our final motor driver because it proved to be the most reliable option during testing. Although it is larger and has a higher voltage drop than the DRV8871, it was able to consistently handle the operating conditions of our 12 V motor system without overheating or failing. For our robot, reliability was more important than having a smaller and more efficient driver, so the L298N was the better choice for the final design.
+
+# Camera: OV5647 Wide-Angle Camera
+
+<table>
+  <tr>
+    <td align="center"><strong></strong><br><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Robot%20Electronic%20Parts/Pi%20Camera%203%20Wide.png" width="300"></td>
+  </tr>
+</table> 
+
+The camera listed in our BOM is the SainSmart Wide-Angle 5MP camera with the OV5647 sensor, which has a 160° field of view. The wide field of view allows the robot to see a larger area of the track and its surroundings compared to a narrower camera.
+
+We use the camera for several parts of our navigation system, including lane, wall, and pillar detection. This allows one sensor to provide multiple types of information to the robot instead of requiring separate sensors for each feature.
+
+The main advantage of using a wide-angle camera is its versatility and coverage. However, visual detection can become less reliable when parts of the track are blocked or when lighting and visibility make features harder to detect. Overall, the camera provides the range of visual information needed for our navigation system while keeping the sensor setup relatively simple.
+
+# Parking: TOF Sensor vs. Motor Encoder
+
+
+For parking, we considered two options: a VL53L0X Time-of-Flight (TOF) sensor and the motor encoder already built into our JGA25-371 motor. We compared them based on accuracy, reliability, hardware requirements, and how easily they could be integrated into our existing system.
+
+The VL53L0X is a Time-of-Flight distance sensor that uses infrared light to measure the distance to an object. It can measure distances up to approximately 2 m and communicates with the Raspberry Pi Pico 2 W through I²C. Its main advantage is that it measures the environment directly, so wheel slip does not directly affect the measured distance. However, its limited field of view makes its accuracy dependent on the sensor’s position and orientation. It would also add another I²C device for a task that could be done using hardware already built into our drivetrain.
+
+The JGA25-371 motor has an integrated encoder that allows the Raspberry Pi Pico 2 W to monitor motor rotation and estimate how far the robot has travelled. Our selected 9.6:1 motor has a listed no-load speed of approximately 620 RPM, a rated-load speed of approximately 500 RPM, and approximately 0.9 kg·cm of rated-load torque. The main advantage is that the encoder reuses hardware already built into the drivetrain, so no additional distance sensor is needed. The trade-off is that it measures wheel movement rather than the robot’s actual position, meaning wheel slip and small differences in wheel diameter can introduce error.
+
+### Comparison Table
+
+| Feature | VL53L0X TOF Sensor | Motor Encoder |
+|---|---|---|
+| Measurement | Direct distance to an object | Estimated distance from wheel rotation |
+| Communication | I²C | Encoder signal |
+| Additional hardware | Requires a separate sensor | Already integrated into the motor |
+| Affected by wheel slip | No | Yes |
+| Main advantage | Measures the robot's actual distance from its surroundings | Reuses existing hardware and simplifies the system |
+| Main disadvantage | Limited field of view and requires another I²C device | Distance can be affected by wheel slip and wheel diameter |
+| Selected for parking | No | Yes |
+
+### Final Decision
+
+We selected the motor encoder for parking because the parking area provides a relatively controlled environment where repeatable wheel movement is sufficient for our parking sequence. Using the encoder also simplifies our sensor architecture by removing a dedicated distance sensor and reducing the number of devices using the I²C bus.
+
+This allowed us to keep the BNO055 as our primary I²C sensor while using the existing motor encoder for the distance information needed during parking. Although the encoder can introduce some error from wheel slip, the simpler setup and reuse of existing hardware made it the better choice for our robot.
 
 
 
