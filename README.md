@@ -861,68 +861,73 @@ The obstacle avoidance section works alongside wall following, using colour dete
   </tr>
 </table>
 
-1. **Detect an obstacle**
-   - A dedicated `middle_frame` ROI spanning the full frame width watches for red and green contours.
-   - An obstacle is detected when either colour exceeds the detection threshold:
-     
-     `obs_on_screen = red_area > 100 or green_area > 100`
-     
-   - The robot enters `AVOIDING_OBSTACLE` from `WALL_FOLLOW` as soon as either area crosses the threshold, unless a turn is already pending.
+### 1. Detect an obstacle
 
-2. **Select the obstacle to react to**
-   - Contours are filtered to real blobs with an area greater than `400 px` across both colours.
-   - They are sorted by how close their bottom edge is to the bottom of the frame, so the nearest obstacle is selected:
-     
-     `closest_contour, obstacle_color = all_contours[0]`
+- A dedicated `middle_frame` ROI spanning the full frame width watches for red and green contours.
+- An obstacle is detected when either colour exceeds the detection threshold:
 
-3. **Find the gap to steer through**
-   - The pass-side corner of the obstacle's bounding box is used:
-     - **GREEN:** bottom-left corner, since the robot passes on the left.
-     - **RED:** bottom-right corner, since the robot passes on the right.
-   - A band of rows around the obstacle's own row is searched in the **opposite wall's ROI** for the nearest black pixel, stored as `black_wall_x`.
-   - The target point is calculated as the midpoint between the obstacle's corner and the detected wall position.
+`obs_on_screen = red_area > 100 or green_area > 100`
 
-4. **Steer toward the gap**
-   - The camera error is calculated relative to the centre of the frame:
-     
-     `cam_error = target_x - frame_center_x`
-     
-   - Steering is calculated using a proportional controller:
-     
-     `steering = DEFAULT_STEER_ANGLE + KP_OBSTACLE * cam_error`
-     
-   - The steering angle is limited to a safe range:
-     
-     `steering = max(45, min(135, steering))`
-     
-   - This is a **camera-only steering method**, with no gyro blending.
+- The robot enters `AVOIDING_OBSTACLE` from `WALL_FOLLOW` as soon as either area crosses the threshold, unless a turn is already pending.
+
+### 2. Select the obstacle to react to
+
+- Contours are filtered to real blobs with an area greater than `400 px` across both colours.
+- They are sorted by how close their bottom edge is to the bottom of the frame, so the nearest obstacle is selected:
+
+`closest_contour, obstacle_color = all_contours[0]`
+
+### 3. Find the gap to steer through
+
+- The pass-side corner of the obstacle's bounding box is used:
+  - **GREEN:** bottom-left corner, since the robot passes on the left.
+  - **RED:** bottom-right corner, since the robot passes on the right.
+- A band of rows around the obstacle's own row is searched in the **opposite wall's ROI** for the nearest black pixel, stored as `black_wall_x`.
+- The target point is calculated as the midpoint between the obstacle's corner and the detected wall position.
+
+### 4. Steer toward the gap
+
+- The camera error is calculated relative to the centre of the frame:
+
+`cam_error = target_x - frame_center_x`
+
+- Steering is calculated using a proportional controller:
+
+`steering = DEFAULT_STEER_ANGLE + KP_OBSTACLE * cam_error`
+
+- The steering angle is limited to a safe range:
+
+`steering = max(45, min(135, steering))`
+
+- This is a **camera-only steering method**, with no gyro blending.
 
 <table>
   <tr>
     <td align="center"><strong></strong><br><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/obs_ss.png" width="600"></td>
   </tr>
-</table> 
+</table>
 
-5. **Safety check — too close to the wall**
-   - If the obstacle is on the "wrong side" and its bottom edge has passed **75% of the ROI height**, the obstacle is considered too close.
-   - The robot enters the `REVERSING` state.
-   - It backs up for **1 second** before attempting to avoid the obstacle again.
+### 5. Safety check — too close to the wall
 
-6. **Check if the obstacle is cleared**
-   - The robot checks whether it has reached the desired position beside the obstacle:
-     
-     `obstacle_reached = |cam_error| < OBSTACLE_REACHED_PX and |cam_error_y| < OBSTACLE_REACHED_PY4`
-     
-   - This ensures that the robot has reached the desired position beside the obstacle.
-   - The obstacle is considered avoided when it is either completely out of view or `obstacle_reached` is true while the obstacle is still visible.
-   - Once cleared, the robot returns to `WALL_FOLLOW`.
+- If the obstacle is on the "wrong side" and its bottom edge has passed **75% of the ROI height**, the obstacle is considered too close.
+- The robot enters the `REVERSING` state.
+- It backs up for **1 second** before attempting to avoid the obstacle again.
 
+### 6. Check if the obstacle is cleared
+
+- The robot checks whether it has reached the desired position beside the obstacle:
+
+`obstacle_reached = |cam_error| < OBSTACLE_REACHED_PX and |cam_error_y| < OBSTACLE_REACHED_PY4`
+
+- This ensures that the robot has reached the desired position beside the obstacle.
+- The obstacle is considered avoided when it is either completely out of view or `obstacle_reached` is true while the obstacle is still visible.
+- Once cleared, the robot returns to `WALL_FOLLOW`.
 
 <table>
   <tr>
     <td align="center"><strong></strong><br><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/obstacle%20flowchart.png" width="600"></td>
   </tr>
-</table> 
+</table>
 
 ### Parking States
 
@@ -937,11 +942,3 @@ To run the program without a connected display, ensure that the `SHOW_VID` varia
 
 ```python
 SHOW_VID = False
-
-
-
-
-
-
-
-
