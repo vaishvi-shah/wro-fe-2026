@@ -1014,7 +1014,7 @@ The obstacle avoidance section works alongside wall following, using colour dete
 
 ### Running the Program
 
-To run the program without a connected display, ensure that the `SHOW_VID` variable is set to `False`.
+To run the program without a connected display, ensure that the `SHOW_VID` variable is set to `False`. The working open challenge code is openchallenge.py under Code and the working obstacle challenge code is obstaclechallenge.py under Code.
 ### Running the Program on Startup
 
 The robot can be configured to automatically start the challenge program when the Raspberry Pi boots using `crontab`.
@@ -1037,5 +1037,5 @@ The crontab command can then be modified to redirect output to this file, allowi
 
 ### CAD and Wiring Files
 
-All STL files and images of the parts used for the robot's CAD and 3D-printed components are included in the repository. All wiring diagrams are also provided, allowing the robot's physical structure and electronic connections to be reproduced alongside the software and challenge implementations.
+All STL files and images of the parts used for the robot's CAD and 3D-printed components are included in the repository under the Models folder. wiring diagrams are also provided, allowing the robot's physical structure and electronic connections to be reproduced alongside the software and challenge implementations.
 
