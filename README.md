@@ -28,8 +28,7 @@ We approached the development through several stages, beginning with idea genera
 ### Summary Video
 
 
-
-[![](logo.jpg)](https://youtube.com)
+[![Logo](photos/logo.png)](https://www.youtube.com/watch?v=VKRCWfLhV6I)
 
 
 
