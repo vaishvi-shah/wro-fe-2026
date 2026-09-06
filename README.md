@@ -1040,5 +1040,5 @@ The crontab command can then be modified to redirect output to this file, allowi
 
 ### CAD and Wiring Files
 
-All STL files used for the robot's CAD and 3D-printed components are included in the repository. All wiring diagrams are also provided, allowing the robot's physical structure and electronic connections to be reproduced alongside the software and challenge implementations.
+All STL files and images of the parts used for the robot's CAD and 3D-printed components are included in the repository. All wiring diagrams are also provided, allowing the robot's physical structure and electronic connections to be reproduced alongside the software and challenge implementations.
 
