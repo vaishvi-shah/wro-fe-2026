@@ -1,9 +1,8 @@
 # Hello! We are Team Electrocute
 
-<table>
+<table align="center">
   <tr>
-    <td align="center"><strong>Team Picture</strong><br><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Team%20Picture.jpg" width="500
-                                                          00"></td>
+    <td align="center"><strong>Team Picture</strong><br><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Team%20Picture.jpg" width="500"></td>
   </tr>
 </table>
 
