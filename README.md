@@ -901,7 +901,7 @@ $$
 steering\_value = 0.7 \times gyro\_steer + 0.3 \times cam\_steer
 $$
 
-<table>
+<table align="center">
   <tr>
     <td align="center"><strong></strong><br><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/steering%20flow%20chart.png" width="600"></td>
   </tr>
@@ -929,7 +929,7 @@ IF left_area > SAFE_TURN_AREA:
 
 The obstacle avoidance section works alongside wall following, using colour detection to find red and green blocks and steer around them instead of through them. The algorithm is as follows:
 
-<table>
+<table align="center">
   <tr>
     <td align="center"><strong></strong><br><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/State%20Mermaid.png" width="600"></td>
   </tr>
@@ -978,7 +978,7 @@ The obstacle avoidance section works alongside wall following, using colour dete
 
 - This is a **camera-only steering method**, with no gyro blending.
 
-<table>
+<table align="center">
   <tr>
     <td align="center"><strong></strong><br><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/obs_ss.png" width="600"></td>
   </tr>
@@ -1000,7 +1000,7 @@ The obstacle avoidance section works alongside wall following, using colour dete
 - The obstacle is considered avoided when it is either completely out of view or `obstacle_reached` is true while the obstacle is still visible.
 - Once cleared, the robot returns to `WALL_FOLLOW`.
 
-<table>
+<table align="center">
   <tr>
     <td align="center"><strong></strong><br><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/obstacle%20flowchart.png" width="600"></td>
   </tr>
