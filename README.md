@@ -9,11 +9,24 @@
 We are a team of three high school students participating in the **World Robot Olympiad (WRO) Future Engineers 2026** category.
 
 
-| Member           | Role                 |
-| ---------------- | -------------------- |
-| Vaishvi Shah     | Software & Logic     |
-| Avani Devalankar | 3d Design & Hardware |
-| Jaitra Bhatt     | Documentation        |
+<table align="center">
+  <tr>
+    <td align="center"><strong>Member</strong></td>
+    <td align="center"><strong>Role</strong></td>
+  </tr>
+  <tr>
+    <td align="center">Vaishvi Shah</td>
+    <td align="center">Software &amp; Logic</td>
+  </tr>
+  <tr>
+    <td align="center">Avani Devalankar</td>
+    <td align="center">3D Design &amp; Hardware</td>
+  </tr>
+  <tr>
+    <td align="center">Jaitra Bhatt</td>
+    <td align="center">Documentation</td>
+  </tr>
+</table>
 
 
 - [Overview](#overview)
