@@ -27,7 +27,10 @@ We approached the development through several stages, beginning with idea genera
 
 ### Summary Video
 
-[![](https://youtube.com)](https://www.youtube.com/watch?v=VKRCWfLhV6I)
+Here is my project text.
+
+[![](https://youtube.com)](https://youtube.com)
+
 
 
 ### Open Challenge Videos
