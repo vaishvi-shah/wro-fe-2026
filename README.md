@@ -28,6 +28,43 @@ We are a team of three high school students participating in the **World Robot O
   </tr>
 </table>
 
+  
+
+# Overview
+
+The primary objective was to build an autonomous robot capable of navigating a closed course with obstacles and parallel parking itself at the end.
+
+We chose this project because we wanted a challenging experience during high school where we could apply our Python skills while developing new skills in electronics, CAD, and 3D printing. We also drew inspiration from top teams that participated in WRO Future Engineers over the past two years by studying their [GitHub repositories](https://github.com/World-Robot-Olympiad-Association).
+
+Our main objective was to create a dependable and effective system while showcasing our engineering, problem-solving, and teamwork skills. The project also gave us an opportunity to expand our knowledge and develop new skills throughout the process of building our robot.
+
+We approached the development through several stages, beginning with idea generation and research, followed by designing, building, testing, and refining our system. We also kept thorough records of our work to make it easier to share information, track changes, and maintain a consistent workflow throughout the project.
+
+### Summary Video
+
+
+<a href="https://www.youtube.com/watch?v=VKRCWfLhV6I">
+  <img src="photos/logo.png" alt="Watch video" width="600">
+</a>
+
+Click above to watch our video!
+
+
+### Open Challenge Videos
+
+
+
+https://github.com/user-attachments/assets/b752e2d7-2efb-4881-ae9d-5aae1f4fcaa4
+
+
+
+### Obstacle Video
+
+https://github.com/user-attachments/assets/9520dfca-cd9e-48ff-8d53-4761ecfdaf9c
+
+
+
+## Table of Content
 
 - [Overview](#overview)
   - [Summary Video](#summary-video)
@@ -120,44 +157,6 @@ We are a team of three high school students participating in the **World Robot O
     - [Running the Program](#running-the-program)
     - [Running the Program on Startup](#running-the-program-on-startup)
     - [CAD and Wiring Files](#cad-and-wiring-files)
-    - 
-
-# Overview
-
-The primary objective was to build an autonomous robot capable of navigating a closed course with obstacles and parallel parking itself at the end.
-
-We chose this project because we wanted a challenging experience during high school where we could apply our Python skills while developing new skills in electronics, CAD, and 3D printing. We also drew inspiration from top teams that participated in WRO Future Engineers over the past two years by studying their [GitHub repositories](https://github.com/World-Robot-Olympiad-Association).
-
-Our main objective was to create a dependable and effective system while showcasing our engineering, problem-solving, and teamwork skills. The project also gave us an opportunity to expand our knowledge and develop new skills throughout the process of building our robot.
-
-We approached the development through several stages, beginning with idea generation and research, followed by designing, building, testing, and refining our system. We also kept thorough records of our work to make it easier to share information, track changes, and maintain a consistent workflow throughout the project.
-
-### Summary Video
-
-
-<a href="https://www.youtube.com/watch?v=VKRCWfLhV6I">
-  <img src="photos/logo.png" alt="Watch video" width="600">
-</a>
-
-Click above to watch our video!
-
-
-### Open Challenge Videos
-
-
-
-https://github.com/user-attachments/assets/b752e2d7-2efb-4881-ae9d-5aae1f4fcaa4
-
-
-
-### Obstacle Video
-
-https://github.com/user-attachments/assets/9520dfca-cd9e-48ff-8d53-4761ecfdaf9c
-
-
-
-## Table of Content
-Add table of Content 
 
 ## Meet The Robot
 
