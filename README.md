@@ -54,8 +54,12 @@ Add table of Content
 
 ## Meet The Robot
 
-- Insert robot images
-
+<table>
+  <tr>
+    <td align="center"><strong>Team Picture</strong><br><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Gif.gif" width="500
+                                                          00"></td>
+  </tr>
+</table>
 Meet Batmobile, our autonomous car designed and 3D-printed for WRO Future Engineers 2026. The brain of the robot is a Raspberry Pi 5, which processes the camera feed using OpenCV and handles navigation, obstacle detection, and sensor logic. A Raspberry Pi Pico communicates with the Pi through a USB serial connection and controls the DC motor and steering servo.
 
 Batmobile uses a camera, IMU, and encoder sensor to navigate the field. The camera provides visual information for navigation and obstacle detection, the IMU helps maintain a straight heading and execute accurate turns, and the encoder sensor assists with precise parking. Together, these systems allow Batmobile to independently perceive its surroundings, make decisions, and navigate the competition field.
