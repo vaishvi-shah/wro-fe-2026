@@ -56,7 +56,7 @@ Add table of Content
 
 <table>
   <tr>
-    <td align="center"><strong>Team Picture</strong><br><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Gif.gif" width="500
+    <td align="center"><strong>GIF</strong><br><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Gif.gif" width="500
                                                           00"></td>
   </tr>
 </table>
@@ -70,20 +70,6 @@ We found the public WRO repositories especially useful when getting started. Bei
 
 
 # Introduction
-
-## Meet The Robot
-
-- Insert robot images
-
-Meet Batmobile, our autonomous car designed and 3D-printed for WRO Future Engineers 2026. The brain of the robot is a Raspberry Pi 5, which processes the camera feed using OpenCV and handles navigation, obstacle detection, and sensor logic. A Raspberry Pi Pico communicates with the Pi through a USB serial port and controls the DC motor and the steering servo.
-
-Batmobile uses a camera, IMU, and encoder sensor to navigate the field. The camera provides visual information for navigation and obstacle detection, while the IMU helps maintain a straight heading. Finally, the encoder assists with precise parking. Together, these systems allow Batmobile to independently perceive its surroundings, make decisions, and navigate the competition field.
-
-## Preliminary Work
-
-We found publicly available WRO repositories from previous teams especially useful during the early stages of our project. Their documentation gave us insight into how other teams approached robot design, programming, electronics, and problem solving. This allowed us to learn from their experiences and use their work as a starting point rather than having to develop every idea from scratch.
-
-As our project progressed, we wanted to contribute to the same community that helped us. We therefore focused on creating documentation that is practical, detailed, and easy to follow. By documenting both our successes and failures, we hope our work can provide a useful starting point for teams developing their own robots.
 
 # Mobility & Mechanical Design
 
@@ -939,4 +925,27 @@ The obstacle avoidance section works alongside wall following, using colour dete
 ### Running the Program
 
 To run the program without a connected display, ensure that the `SHOW_VID` variable is set to `False`.
+### Running the Program on Startup
+
+The robot can be configured to automatically start the challenge program when the Raspberry Pi boots using `crontab`.
+
+Open the root crontab using:
+
+    sudo crontab -e
+
+Add the following line to the end of the crontab, replacing `<path/to>` with the path to the challenge file:
+
+    @reboot /usr/bin/python3 <path/to>/obs_ch.py >/dev/null 2>&1 &
+
+This command automatically runs the Python program whenever the Raspberry Pi starts.
+
+By default, the `>/dev/null 2>&1` portion redirects all standard output and error messages to `/dev/null`, meaning they will not be saved or displayed. For debugging purposes, a log file can instead be created using:
+
+    sudo touch /dev/cronlog
+
+The crontab command can then be modified to redirect output to this file, allowing debug messages and errors to be reviewed.
+
+### CAD and Wiring Files
+
+All STL files used for the robot's CAD and 3D-printed components are included in the repository. All wiring diagrams are also provided, allowing the robot's physical structure and electronic connections to be reproduced alongside the software and challenge implementations.
 
