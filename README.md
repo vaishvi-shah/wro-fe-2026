@@ -331,7 +331,6 @@ The WRO track is flat, so we did not need the extra stall torque provided by the
   </tr>
 </table> 
 
-Add pictures
 
 | Specification | Lower-RPM JGA25-371 (~126–280 RPM) |
 |---|---|
@@ -403,7 +402,6 @@ Our first drivetrain used a LEGO differential to drive the rear wheels, allowing
 
 To improve reliability and performance, we replaced the LEGO differential with a WLToys 144001 differential, which has a 2.5:1 reduction ratio. This provided a stronger connection, smoother movement, and more consistent turning while eliminating the axle-loosening issue.
 
-Add pictures of differential
 
 ### Ackermann Steering
 
@@ -432,7 +430,6 @@ This was necessary because the inside wheel travels along a smaller circle, whil
   </tr>
 </table> 
 
-Add picture of servo
 
 ### Specifications
 
