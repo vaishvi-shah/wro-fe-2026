@@ -943,7 +943,4 @@ To run the program without a connected display, ensure that the `SHOW_VID` varia
 
 ```text
 
-```python
-SHOW_VID = False
-
 
