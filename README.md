@@ -28,12 +28,19 @@ We approached the development through several stages, beginning with idea genera
 ### Summary Video
 Add summary video here.
 
-### Obstacle Video
-<video src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/videos/Obstacle%20Challenge%20Video.mp4" width="600" controls></video>
-
 
 ### Open Challenge Videos
-Add open challenge videos here.
+
+
+
+https://github.com/user-attachments/assets/b752e2d7-2efb-4881-ae9d-5aae1f4fcaa4
+
+
+
+### Obstacle Video
+
+https://github.com/user-attachments/assets/9520dfca-cd9e-48ff-8d53-4761ecfdaf9c
+
 
 
 ## Table of Content
