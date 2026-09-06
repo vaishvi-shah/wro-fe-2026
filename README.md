@@ -160,7 +160,7 @@ https://github.com/user-attachments/assets/9520dfca-cd9e-48ff-8d53-4761ecfdaf9c
 
 ## Meet The Robot
 
-<table>
+<table align="center">
   <tr>
     <td align="center"><strong>GIF</strong><br><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Gif.gif" width="500
                                                           00"></td>
