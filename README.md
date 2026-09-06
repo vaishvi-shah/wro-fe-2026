@@ -940,4 +940,3 @@ The obstacle avoidance section works alongside wall following, using colour dete
 
 To run the program without a connected display, ensure that the `SHOW_VID` variable is set to `False`.
 
-```text
