@@ -876,6 +876,12 @@ $$
 
 The Open Challenge uses a combination of camera-based wall following and IMU heading control to navigate the field. The algorithm is as follows:
 
+<table align="center">
+  <tr>
+    <td align="center"><strong></strong><br><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/obstacle%20flowchart.png" width="600"></td>
+  </tr>
+</table>
+
 ### 1. Get Sensor Inputs
 
 - The Raspberry Pi captures a 320 × 240 camera feed and reads the robot's heading from the BNO055 IMU.
@@ -1000,11 +1006,7 @@ The obstacle avoidance section works alongside wall following, using colour dete
 - The obstacle is considered avoided when it is either completely out of view or `obstacle_reached` is true while the obstacle is still visible.
 - Once cleared, the robot returns to `WALL_FOLLOW`.
 
-<table align="center">
-  <tr>
-    <td align="center"><strong></strong><br><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/obstacle%20flowchart.png" width="600"></td>
-  </tr>
-</table>
+
 
 ### Parking States
 
