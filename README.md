@@ -886,87 +886,422 @@ IF left_area > SAFE_TURN_AREA:
     turn(direction)
 ```
 
+<table align="center">
+  <tr>
+    <td align="center"><strong></strong><br><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/screen%20explanation.png" width="600"></td>
+  </tr>
+</table>
+
 ## Obstacle Challenge Code
 
-The obstacle avoidance section works alongside wall following, using colour detection to find red and green blocks and steer around them instead of through them. The algorithm is as follows:
+The obstacle avoidance system was developed through **two distinct iterations**. Iteration 1 was the original obstacle avoidance approach. After testing revealed several problems, the system was redesigned in Iteration 2 to improve obstacle selection, gap detection, steering consistency, and recovery behaviour.
+
+---
+
+# Iteration 1 — Initial Obstacle Avoidance
+
+The first iteration used colour detection to identify red and green obstacles and attempted to determine a suitable path around them using the obstacle position and the black walls.
 
 <table align="center">
   <tr>
-    <td align="center"><strong></strong><br><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/State%20Mermaid.png" width="600"></td>
+    <td align="center"><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/State%20Mermaid.png" width="600"></td>
   </tr>
 </table>
 
-### 1. Detect an obstacle
+### 1. Detect an Obstacle
 
-- A dedicated `middle_frame` ROI spanning the full frame width watches for red and green contours.
-- An obstacle is detected when either colour exceeds the detection threshold:
+A dedicated `middle_frame` ROI spanning the full frame width was used to detect red and green contours.
 
-`obs_on_screen = red_area > 100 or green_area > 100`
+An obstacle was detected when either colour exceeded the detection threshold:
 
-- The robot enters `AVOIDING_OBSTACLE` from `WALL_FOLLOW` as soon as either area crosses the threshold, unless a turn is already pending.
+```python
+obs_on_screen = red_area > 100 or green_area > 100
+```
 
-### 2. Select the obstacle to react to
+The robot entered `AVOIDING_OBSTACLE` from `WALL_FOLLOW` as soon as either area crossed the threshold, unless a turn was already pending.
 
-- Contours are filtered to real blobs with an area greater than `400 px` across both colours.
-- In earlier iterations, we measured closeness based on obstacle size, but closer obstacles were sometimes cut off from view, making their detected area smaller. Using the position of the bottom edge instead made this approach more reliable.
-- They are sorted by how close their bottom edge is to the bottom of the frame, so the nearest obstacle is selected:
+---
 
-`closest_contour, obstacle_color = all_contours[0]`
+### 2. Select the Obstacle to React To
 
-### 3. Find the gap to steer through
+The original system used the **area of the detected obstacle** to estimate which obstacle was closest.
 
-- The pass-side corner of the obstacle's bounding box is used:
-  - **GREEN:** bottom-left corner, since the robot passes on the left.
-  - **RED:** bottom-right corner, since the robot passes on the right.
-- In an earlier iteration, a band of rows around the obstacle's own row was searched in the **opposite wall's ROI** for the nearest black pixel, stored as `black_wall_x`.
-- This approach proved unreliable because black pixels are present throughout the course, so the detected wall position could change depending on the robot's angle and the surrounding black lines. This made the target point inconsistent and could cause the robot to steer incorrectly.
-- In the new approach, the algorithm plots a target point beside the obstacle based on its position. When the obstacle is closer, the target point is placed farther away from the obstacle, and when the obstacle is farther away, the target point is placed closer to it.
-- This creates a more consistent and predictable gap for the robot to steer through without relying on the position of the black walls or the robot's angle.
+Contours were detected for both red and green obstacles, and the obstacle with the largest detected area was treated as the closest obstacle.
 
-### 4. Steer toward the gap
+#### Problem
 
-- The camera error is calculated relative to the centre of the frame:
+Using obstacle area as a distance measurement was unreliable.
 
-`cam_error = target_x - frame_center_x`
+When an obstacle became very close to the robot, part of the obstacle could leave the camera's field of view. This caused its detected contour area to become smaller even though the obstacle was actually closer.
 
-- Steering is calculated using a proportional controller:
+As a result, the robot could incorrectly determine which obstacle was the closest when multiple obstacles were visible.
 
-`steering = DEFAULT_STEER_ANGLE + KP_OBSTACLE * cam_error`
+---
 
-- The steering angle is limited to a safe range:
+### 3. Determine the Passing Side
 
-`steering = max(45, min(135, steering))`
+The obstacle colour was used to determine which side the robot should pass:
 
-- This is a **camera-only steering method**, with no gyro blending.
+- **GREEN:** Pass on the left.
+- **RED:** Pass on the right.
+
+The appropriate corner of the obstacle's bounding box was used as the reference:
+
+- **GREEN:** Bottom-left corner
+- **RED:** Bottom-right corner
+
+#### Problem
+
+The obstacle colour correctly indicated which side the robot should pass, but using the obstacle corner alone did not provide enough information about the available gap.
+
+The robot needed to determine where the opposite wall was so that it could estimate a suitable position to steer through.
+
+---
+
+### 4. Find the Gap to Steer Through
+
+The original approach searched for the black wall on the opposite side of the obstacle.
+
+A band of rows around the obstacle's own row was searched in the opposite wall's ROI for the nearest black pixel. The detected position was stored as:
+
+```python
+black_wall_x
+```
+
+This was then used to calculate a target point for the robot.
+
+#### Problem
+
+This method was inconsistent because **black pixels were present throughout the course**, not only on the walls.
+
+Black lines and other black areas could be detected as the wall. The detected position could also change depending on the robot's angle.
+
+This caused `black_wall_x` to change unexpectedly, which resulted in an inconsistent target point.
+
+The robot could therefore steer toward the wrong position even though the obstacle itself had been detected correctly.
+
+---
+
+### 5. Steer Toward the Gap
+
+The camera error was calculated relative to the centre of the frame:
+
+```python
+cam_error = target_x - frame_center_x
+```
+
+Steering was calculated using a proportional controller:
+
+```python
+steering = DEFAULT_STEER_ANGLE + KP_OBSTACLE * cam_error
+```
+
+The steering angle was limited to the mechanical range:
+
+```python
+steering = max(45, min(135, steering))
+```
+
+The obstacle avoidance controller used **camera-only steering**, with no gyro blending.
+
+#### Problem
+
+The proportional controller itself was not the primary problem.
+
+The problem was that the `target_x` value could be incorrect because it depended on the unreliable black-wall detection.
+
+Therefore, the controller could correctly steer toward an incorrect target.
+
+---
+
+### 6. Safety Check
+
+A safety check was used to determine when an obstacle was too close.
+
+If the obstacle was on the wrong side and its bottom edge had passed **75% of the ROI height**, the obstacle was considered too close.
+
+The robot then entered the `REVERSING` state and backed up for **1 second**.
+
+#### Problem
+
+Without a recovery behaviour, the robot could continue driving toward an obstacle when there was no longer enough space to safely steer around it.
+
+The reversing behaviour was therefore necessary to prevent the robot from becoming stuck against an obstacle.
+
+---
+
+### 7. Check if the Obstacle Was Cleared
+
+The robot checked whether it had reached the desired position beside the obstacle:
+
+```python
+obstacle_reached = (
+    abs(cam_error) < OBSTACLE_REACHED_PX
+    and abs(cam_error_y) < OBSTACLE_REACHED_PY4
+)
+```
+
+The obstacle was considered avoided when it was either completely out of view or `obstacle_reached` was true while the obstacle was still visible.
+
+Once cleared, the robot returned to:
+
+```text
+WALL_FOLLOW
+```
+
+#### Problem
+
+Simply waiting for the obstacle to disappear from the camera was not always sufficient.
+
+The robot needed to confirm that it had actually moved into the desired position beside the obstacle before returning to normal wall following.
+
+---
+
+# Iteration 2 — Improved Obstacle Avoidance
+
+Testing Iteration 1 revealed that the main problems were with **distance estimation, target calculation, and inconsistent wall detection**.
+
+Iteration 2 changed these parts of the system while retaining the colour-based obstacle detection and camera-based steering.
 
 <table align="center">
   <tr>
-    <td align="center"><strong></strong><br><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/obs_ss.png" width="600"></td>
+    <td align="center"><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/obs_ss.png" width="600"></td>
   </tr>
 </table>
 
-### 5. Safety check — too close to the wall
+### 1. Detect an Obstacle
 
-- If the obstacle is on the "wrong side" and its bottom edge has passed **75% of the ROI height**, the obstacle is considered too close.
-- The robot enters the `REVERSING` state.
-- It backs up for **1 second** before attempting to avoid the obstacle again.
+The original colour detection system was retained.
 
-### 6. Check if the obstacle is cleared
+A dedicated `middle_frame` ROI spanning the full frame width detects red and green contours.
 
-- The robot checks whether it has reached the desired position beside the obstacle:
+```python
+obs_on_screen = red_area > 100 or green_area > 100
+```
 
-`obstacle_reached = |cam_error| < OBSTACLE_REACHED_PX and |cam_error_y| < OBSTACLE_REACHED_PY4`
+The robot enters `AVOIDING_OBSTACLE` when either colour exceeds the detection threshold, unless a turn is already pending.
 
-- This ensures that the robot has reached the desired position beside the obstacle.
-- The obstacle is considered avoided when it is either completely out of view or `obstacle_reached` is true while the obstacle is still visible.
-- Once cleared, the robot returns to `WALL_FOLLOW`.
+#### Why This Was Retained
 
-### Parking States
+The colour detection successfully identified the red and green obstacles, so this part of the original system did not require a major change.
 
-`OUT_PARKING` and `IN_PARKING` are both parking states that occur once during the challenge:
+---
 
-- `OUT_PARKING` occurs once at the **very beginning**.
-- `IN_PARKING` occurs once at the **very end**.
+### 2. Select the Closest Obstacle
+
+#### Change — Area-Based → Bottom-Edge-Based
+
+The original area-based distance measurement was replaced.
+
+Contours were filtered to real obstacle blobs with an area greater than `400 px`.
+
+The contours were then sorted according to the position of their bottom edge:
+
+```python
+closest_contour, obstacle_color = all_contours[0]
+```
+
+The obstacle whose bottom edge was closest to the bottom of the ROI was selected as the closest obstacle.
+
+#### Why This Was Changed
+
+The original area-based method could fail when a close obstacle was partially outside the camera's field of view.
+
+The bottom edge provided a more reliable measurement because an obstacle moves lower in the camera frame as the robot approaches it.
+
+This made the closest-obstacle selection more consistent.
+
+---
+
+### 3. Determine the Passing Side
+
+The original colour-based passing logic was retained:
+
+- **GREEN:** Pass on the left.
+- **RED:** Pass on the right.
+
+The appropriate bottom corner of the obstacle remained the reference point:
+
+- **GREEN:** Bottom-left
+- **RED:** Bottom-right
+
+#### Why This Was Retained
+
+The colour of the obstacle already provided a reliable indication of which side the robot should use, so this part did not need to be replaced.
+
+---
+
+### 4. Improve the Gap Calculation
+
+#### Original Problem
+
+The Iteration 1 system searched for `black_wall_x` to determine the opposite wall.
+
+This was unreliable because other black pixels on the course could be mistaken for the wall.
+
+#### Change — Position-Based Target
+
+The black-wall search was removed.
+
+Instead, the algorithm calculates a target point beside the obstacle based on the obstacle's position in the camera image.
+
+The target distance changes depending on how close the obstacle is:
+
+- **Closer obstacle → target point is placed farther from the obstacle.**
+- **Farther obstacle → target point is placed closer to the obstacle.**
+
+#### Why This Was Changed
+
+This removes the dependency on detecting black pixels.
+
+The target position is no longer affected by:
+
+- Black lines elsewhere on the course
+- Incorrect black-pixel detections
+- Changes in the robot's angle
+- Small changes in the detected wall position
+
+This creates a more consistent and predictable gap for the robot to steer through.
+
+---
+
+### 5. Steer Toward the Gap
+
+The camera error continues to be calculated relative to the centre of the frame:
+
+```python
+cam_error = target_x - frame_center_x
+```
+
+The proportional controller is retained:
+
+```python
+steering = DEFAULT_STEER_ANGLE + KP_OBSTACLE * cam_error
+```
+
+The steering angle remains limited to the safe range:
+
+```python
+steering = max(45, min(135, steering))
+```
+
+The obstacle avoidance controller remains **camera-only**, with no gyro blending.
+
+#### Why This Was Retained
+
+Testing showed that the proportional controller was not the main cause of the steering problems.
+
+The main issue was the unreliable target position produced by the wall detection.
+
+Once the target became more predictable, the same proportional controller could be used effectively.
+
+---
+
+### 6. Safety Check — Obstacle Too Close
+
+The reversing safety system was retained.
+
+If the obstacle is on the wrong side and its bottom edge has passed **75% of the ROI height**, the obstacle is considered too close.
+
+The robot enters `REVERSING` and backs up for **1 second** before attempting the avoidance manoeuvre again.
+
+#### Why This Was Retained
+
+The reversing system provided a useful recovery mechanism when the robot approached an obstacle too closely.
+
+It prevented the robot from continuing forward when there was insufficient space to safely complete the avoidance manoeuvre.
+
+---
+
+### 7. Check if the Obstacle Is Cleared
+
+The obstacle-cleared check was retained:
+
+```python
+obstacle_reached = (
+    abs(cam_error) < OBSTACLE_REACHED_PX
+    and abs(cam_error_y) < OBSTACLE_REACHED_PY4
+)
+```
+
+The obstacle is considered cleared when:
+
+- The obstacle has completely left the camera's view, **or**
+- `obstacle_reached` is true while the obstacle is still visible.
+
+Once the obstacle has been cleared, the robot returns to:
+
+```text
+WALL_FOLLOW
+```
+
+#### Why This Was Retained
+
+The position check provided a reliable way to confirm that the robot had moved beside the obstacle before returning to normal wall following.
+
+---
+
+# Iteration Comparison
+
+| Feature | Iteration 1 | Iteration 2 |
+|---|---|---|
+| Obstacle detection | Red/green colour detection | Red/green colour detection |
+| Closest obstacle | Obstacle area | Bottom-edge position |
+| Passing side | Obstacle colour | Obstacle colour |
+| Reference point | Obstacle corner | Obstacle corner |
+| Gap calculation | Black wall detection | Position-based target |
+| Black wall detection | Yes | No |
+| Target consistency | Inconsistent | More consistent |
+| Camera angle sensitivity | Higher | Lower |
+| Steering | Camera-only | Camera-only |
+| Reversing | 1 second | 1 second |
+| Obstacle-cleared check | Yes | Yes |
+
+---
+
+# Parking
+
+**Iteration 2 was selected as the final obstacle avoidance approach.**
+
+The main improvements were:
+
+1. **Obstacle selection:** Changed from contour area to bottom-edge position because area became unreliable when close obstacles were partially outside the camera's view.
+2. **Gap calculation:** Removed the black-wall search because other black features on the course could be detected as the wall.
+3. **Target calculation:** Changed to a position-based target that adjusts according to the obstacle's distance in the camera frame.
+4. **Steering:** Retained the proportional camera controller because the main issue was the target position, not the steering calculation.
+5. **Safety and clearing:** Retained the reversing and obstacle-cleared checks because they provided useful recovery and state-transition behaviour.
+
+The final system therefore uses **red/green colour detection, bottom-edge obstacle selection, position-based target generation, camera-only proportional steering, reversing protection, and obstacle-cleared detection**.
+
+
+
+
+#### `OUT_PARKING`
+
+`OUT_PARKING` is a **forced turn-out manoeuvre** used to leave the starting parking area.
+
+- The robot starts by turning the steering to the required direction.
+- It continues moving for a **fixed amount of time**.
+- Because the manoeuvre is performed from a known starting position, no sensor-based steering decision is required.
+- After the fixed movement is completed, the robot transitions into the main course navigation.
+
+This provides a consistent way of exiting the starting parking area regardless of the camera or wall-following calculations.
+
+#### `IN_PARKING`
+
+`IN_PARKING` is the final parking manoeuvre and begins after the robot has passed the **12th line**.
+
+The robot uses the black line/wall detection to determine when to begin each part of the parking manoeuvre.
+
+1. After passing the **12th line**, the robot continues forward until the detected black area reaches a predetermined position in the camera frame.
+2. Once the black area reaches this position, the robot performs a **forced turn** into the parking area.
+3. The robot then continues moving forward until the black area reaches another predetermined position.
+4. The robot stops its forward movement.
+5. The steering is turned to the **maximum angle on one side**, and the robot reverses. This begins to swing the rear of the robot into the parking position.
+6. The robot then reverses again while steering in the opposite direction, similar to how a real car performs a multi-point parking manoeuvre.
+7. Once the final parking position is reached, the robot stops.
+
+The parking sequence is therefore based on **predetermined sensor positions and fixed steering movements**, rather than normal wall-following. This allows the robot to perform a controlled multi-step manoeuvre to position itself inside the final parking area.
 
 ### Running the Program
 
