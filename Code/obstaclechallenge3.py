@@ -16,6 +16,7 @@ import lib.bno055 as bno055
 import board
 import adafruit_vl53l0x
 from enum import Enum
+import lib.motor_control as motor_control
 
 
 class State(Enum):
@@ -71,7 +72,7 @@ sent_controller = None  # conqtroller (e.g. FWD->BWD) without also moving steeri
 SHOW_VID = True                 # toggle live OpenCV preview window
 DEFAULT_STEER_ANGLE = 90        # neutral/straight steering angle, sent _as 100 + this
 LINE_COUNT = 12                  # number of colour-line crossings before stopping1Q
-KP = 0.05       # camera proportional gain (wall pixel area difference)
+KP = 0.008       # camera proportional gain (wall pixel area difference)
 KD = 0.001      # camera derivative gain (damps oscillation from the wall pixel area difference)
 KP_GYRO = 0.5   # gyro proportional gain (heading error in degrees)
 KD_GYRO = 0.01  # gyro derivative gain (damps oscillation/overshoot from how fast the
@@ -102,6 +103,8 @@ stopping = False    # true once the stop sequence has started -- independent of 
 reversing_time = None  # timestamp REVERSING was entered
 out_parking_start = None  # timestamp the OUT_PARKING manoeuvre began; None until the first OUT_PARKING frame
 out_parking_steer = None  # locked-in max-steer value (opposite the closer wall) for the OUT_PARKING manoeuvre
+out_parking_obs_clear_start = None  # timestamp the matching obstacle first read as gone from view;
+                                     # None while it's still visible or before the min turn duration is met
 
 park_square_filled = False
 park_turn_called = False
@@ -438,7 +441,8 @@ parking_frame = Frame(cap, 0, 320, 0, 240, colour_range=[red_obstacle_range, gre
 def stop():
     print("AM STOPPING")
     time.sleep(0.01)
-    ser.write(f"90,0,STOP,0,stop\n".encode())
+    motor_control.stopMotor()
+    ser.write(f"90,0,STOP\n".encode())
     ser.flush()
 
 
@@ -1009,8 +1013,14 @@ while True:
             if (out_parking_steer == 130 and red_area > 100) or (out_parking_steer == 50 and green_area > 100):
                 print(f"OUT_PARKING: holding turn, {obstacle_color} obstacle still visible "
                       f"(red={red_area:.0f} green={green_area:.0f})")
+                out_parking_obs_clear_start = None  # obstacle back in view -- reset the clear-timer
             else:
-                state = State.WALL_FOLLOW  # manoeuvre complete -- nothing ever sets state back to OUT_PARKING
+                # Obstacle is gone from view -- keep turning for another 0.2s before finishing,
+                # instead of cutting the manoeuvre the instant it disappears.
+                if out_parking_obs_clear_start is None:
+                    out_parking_obs_clear_start = time.time()
+                if time.time() - out_parking_obs_clear_start >= 0.2:
+                    state = State.WALL_FOLLOW  # manoeuvre complete -- nothing ever sets state back to OUT_PARKING
     elif state == State.IN_PARKING:
 
         parking_frame.update(cap)
@@ -1186,7 +1196,8 @@ while True:
     # ---- common epilogue: single send-gate + single SHOW_VID block for every state ----
 
     if abs(sent_steer - steering) >= 1 or speed != sent_speed or controller != sent_controller:
-        ser.write(f"{steering-5},{speed},{controller},{orange_count},open\n".encode())  # send steering+speed to the microcontroller each loop
+        motor_control.driveMotor(speed * 2.54, controller)
+        ser.write(f"{steering-5},{speed},{controller}\n".encode())  # send steering+speed to the microcontroller each loop
         sent_steer = steering
         sent_speed = speed
         sent_controller = controller
@@ -1365,7 +1376,8 @@ while True:
         break
 
 
-ser.write(f"90,0,STOP,0,stop\n".encode())
+motor_control.stopMotor()
+ser.write(f"90,0,STOP\n".encode())
 ser.close()
 
 
