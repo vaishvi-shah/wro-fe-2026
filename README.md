@@ -995,3 +995,170 @@ The crontab command can then be modified to redirect output to this file, allowi
 
 All STL files and images of the parts used for the robot's CAD and 3D-printed components are included in the repository under the [Models](https://github.com/vaishvi-shah/wro-fe-2026/tree/main/models) folder. wiring diagrams are also provided, allowing the robot's physical structure and electronic connections to be reproduced alongside the software and challenge implementations.
 
+## Step-by-Step Assembly Guide
+
+### 1. Print the Chassis
+Print both chassis layers from the **current CAD revision (Iteration 3 — physical-fit corrected)**.
+
+> **Important:** Do **not** rebuild from Iteration 1 or Iteration 2. These versions are kept only for design reference and are not intended for reproduction.
+
+---
+
+### 2. Assemble the Drivetrain
+
+- Mount the **WLToys 144001 differential (2:1 reduction)** to the rear axle using the custom **differential → axle coupler**.
+- Install the **DC gear motor (9.6:1 gearbox)** using the custom **motor → gear coupler**.
+
+The 9.6:1 gearbox was selected because:
+
+- **4.4:1:** Insufficient torque
+- **46.8:1 and 100:1:** Too slow
+
+Mount the motor in the reworked motor bay, which includes:
+
+- Extended length
+- Access hole for mounting screws
+- Tightened clamp
+- 0.25 mm reduced mounting diameter
+
+---
+
+### 3. Assemble the Steering
+
+- Mount the **MG95S servo** using the dedicated printed mounting holes.
+- Install the **Ackermann steering linkage**.
+
+> Do **not** use the previous LEGO steering geometry.
+
+Before wiring:
+
+1. Move the steering by hand.
+2. Confirm the full mechanical range of approximately **50°–130°**.
+
+This range is important because all steering calculations in software are clamped to these physical limits.
+
+---
+
+### 4. Mount Layer 1 Components
+
+Install:
+
+- Battery (centered and flat)
+- L298N motor driver
+- Servo
+- Camera mount
+- TOF sensor
+
+#### Camera Position
+- Front of chassis
+- Angled downward
+- Mounted high for a longer sight line
+
+#### TOF Sensor Position
+- Rear of chassis
+- Clear, unobstructed line of sight
+
+> Do **not** mount the TOF sensor on Layer 2, as this shifts the sensing axis away from the true rear edge of the robot.
+
+---
+
+### 5. Mount Layer 2 Components
+
+Install:
+
+- Raspberry Pi 5
+- Raspberry Pi Pico 2 W
+- BNO055 IMU
+
+Keep these components away from battery and motor wiring to reduce electrical noise and improve IMU reliability.
+
+---
+
+### 6. Wire the Power System
+
+- Connect the **12 V 3S1P Li-ion battery (8800 mAh)** through the main power switch.
+
+> Required by **WRO Rule 9.10**.
+
+- Feed a **12 V → 5 V buck converter** to power:
+  - Raspberry Pi 5
+  - Raspberry Pi Pico 2 W
+  - Camera
+  - Servo electronics
+
+- Supply motor power directly from the battery through the **L298N motor driver**.
+
+> The Pico cannot safely provide the required motor current.
+
+#### Wiring Recommendations
+
+- Use terminal blocks instead of twisted wire joints.
+- Connect all grounds together to create a common reference.
+
+---
+
+### 7. Wire Control Signals
+
+Connect components according to the circuit diagram:
+
+| Device | Connection |
+|----------|------------|
+| BNO055 IMU | Pico (I²C) |
+| VL53L1X TOF | Pico (I²C, address `0x29`) |
+| MG95S Servo | Pico PWM pin |
+| L298N | Pico GPIO |
+| Pico LCD (optional) | Pico SPI |
+
+> The Pico LCD is intended for bench debugging only.
+
+---
+
+### 8. Attach the Front Bumper
+
+Install the front bumper to protect:
+
+- Camera
+- Steering linkage
+
+from impacts with walls and pillars.
+
+---
+
+### 9. Calibrate Before Every Run
+
+Place the robot on the starting line and keep it stationary while the **BNO055 IMU calibrates**.
+
+This provides:
+
+- A clean heading reference
+- Reduced gyro drift
+- More accurate state machine behaviour
+
+---
+
+### 10. Bench Test Before Full Track Runs
+
+Verify:
+
+- Raspberry Pi 5 ↔ Pico communication
+- Servo movement (**50°–130°**)
+- Motor direction
+- Motor speed control
+
+If no display is connected:
+
+```python
+SHOW_VID = False
+```
+
+If:
+
+```python
+SHOW_VID = True
+```
+
+and no display is attached, the program will attempt to open a video window and generate an error.
+
+---
+
+
