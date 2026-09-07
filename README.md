@@ -997,10 +997,16 @@ All STL files and images of the parts used for the robot's CAD and 3D-printed co
 
 ## Step-by-Step Assembly Guide
 
-### 1. Print the Chassis
-Print both chassis layers from the **current CAD revision (Iteration 3 — physical-fit corrected)**.
+Explosive 3d View of Robot:
+<table align="center">
+  <tr>
+    <td align="center"><strong></strong><br><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/models/Explosive%20view%20Batmobile%203D%20Design.png" width="600"></td>
+  </tr>
+</table>
 
-> **Important:** Do **not** rebuild from Iteration 1 or Iteration 2. These versions are kept only for design reference and are not intended for reproduction.
+
+### 1. Print the Chassis
+Print both chassis layers from models/Model STLs. 
 
 ---
 
@@ -1033,7 +1039,7 @@ Mount the motor in the reworked motor bay, which includes:
 Before wiring:
 
 1. Move the steering by hand.
-2. Confirm the full mechanical range of approximately **50°–130°**.
+2. Confirm the full mechanical range of approximately **45°–135°**.
 
 This range is important because all steering calculations in software are clamped to these physical limits.
 
@@ -1047,20 +1053,12 @@ Install:
 - L298N motor driver
 - Servo
 - Camera mount
-- TOF sensor
-
+  
 #### Camera Position
 - Front of chassis
 - Angled downward
 - Mounted high for a longer sight line
 
-#### TOF Sensor Position
-- Rear of chassis
-- Clear, unobstructed line of sight
-
-> Do **not** mount the TOF sensor on Layer 2, as this shifts the sensing axis away from the true rear edge of the robot.
-
----
 
 ### 5. Mount Layer 2 Components
 
@@ -1104,7 +1102,6 @@ Connect components according to the circuit diagram:
 | Device | Connection |
 |----------|------------|
 | BNO055 IMU | Pico (I²C) |
-| VL53L1X TOF | Pico (I²C, address `0x29`) |
 | MG95S Servo | Pico PWM pin |
 | L298N | Pico GPIO |
 | Pico LCD (optional) | Pico SPI |
@@ -1123,6 +1120,10 @@ Install the front bumper to protect:
 from impacts with walls and pillars.
 
 ---
+
+### Important note. 
+
+Images of how every part connects for each iteration is available under the photos folder.
 
 ### 9. Calibrate Before Every Run
 
