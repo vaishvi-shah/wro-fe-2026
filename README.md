@@ -2,11 +2,14 @@
 
 <table align="center">
   <tr>
-    <td align="center"><strong>Team Picture</strong><br><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Team%20Picture.jpg" width="500"></td>
+    <td align="center"><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/logo.png" width="500"></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Team%20Picture.jpg" width="500"></td>
   </tr>
 </table>
 
-We are a team of three high school students participating in the **World Robot Olympiad (WRO) Future Engineers 2026** category.
+We are a team of high school students from Whitby, Ontario, Canada participating in the **World Robot Olympiad (WRO) Future Engineers 2026** category.
 
 
 <table align="center">
@@ -28,8 +31,6 @@ We are a team of three high school students participating in the **World Robot O
   </tr>
 </table>
 
-  
-
 # Overview
 
 The primary objective was to build an autonomous robot capable of navigating a closed course with obstacles and parallel parking itself at the end.
@@ -42,9 +43,8 @@ We approached the development through several stages, beginning with idea genera
 
 ### Summary Video
 
-
 <a href="https://www.youtube.com/watch?v=VKRCWfLhV6I">
-  <img src="photos/logo.png" alt="Watch video" width="600">
+  <img src="https://github.com/user-attachments/assets/fc5997cb-e51d-4c49-aee7-9d5ee402826d" alt="Watch video" width="900">
 </a>
 
 Click above to watch our video!
@@ -52,11 +52,7 @@ Click above to watch our video!
 
 ### Open Challenge Videos
 
-
-
 https://github.com/user-attachments/assets/b752e2d7-2efb-4881-ae9d-5aae1f4fcaa4
-
-
 
 ### Obstacle Video
 
@@ -118,15 +114,10 @@ https://github.com/user-attachments/assets/9520dfca-cd9e-48ff-8d53-4761ecfdaf9c
   - [Parking: TOF Sensor vs. Motor Encoder](#parking-tof-sensor-vs-motor-encoder)
     - [Comparison Table](#comparison-table-2)
     - [Final Decision](#final-decision-3)
-      - [Control, Display & Support System](#control-display--support-system)
-    - [Comparison Table](#comparison-table-3)
-    - [Final Decision](#final-decision-4)
+  - [Control, Display & Support System](#control-display--support-system)
 - [Final Circuit Architecture](#final-circuit-architecture)
   - [Main Battery: 12V Li-ion Pack](#main-battery-12v-li-ion-pack)
   - [Steering Servo: MG90S vs. SG90](#steering-servo-mg90s-vs-sg90)
-    - [SG90](#sg90)
-    - [MG90S](#mg90s)
-    - [Comparison Table](#comparison-table-4)
   - [Chassis Material: 3D-Printed PLA-CF](#chassis-material-3d-printed-pla-cf)
   - [Wheels: LEGO Wheels and Tires](#wheels-lego-wheels-and-tires)
 - [Power System Architecture](#power-system-architecture)
@@ -162,8 +153,7 @@ https://github.com/user-attachments/assets/9520dfca-cd9e-48ff-8d53-4761ecfdaf9c
 
 <table align="center">
   <tr>
-    <td align="center"><strong>GIF</strong><br><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Gif.gif" width="500
-                                                          00"></td>
+    <td align="center"><strong>GIF</strong><br><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Gif.gif" width="500"></td>
   </tr>
 </table>
 Meet Batmobile, our autonomous car designed and 3D-printed for WRO Future Engineers 2026. The brain of the robot is a Raspberry Pi 5, which processes the camera feed using OpenCV and handles navigation, obstacle detection, and sensor logic. A Raspberry Pi Pico communicates with the Pi through a USB serial connection and controls the DC motor and steering servo.
@@ -191,18 +181,18 @@ Our first chassis was constructed using LEGO Technic pieces to create a basic st
 
 During testing, we encountered several mechanical problems. The wheels frequently came off the chassis during movement and turning. The steering system also had a limited Ackermann steering angle, which made it difficult for the robot to perform tight turns. This was especially problematic during parking, where greater steering angles were needed to maneuver within the available space. Additionally, the differential would come off the axle during operation, affecting the reliability of the drivetrain.
 
-<table>
+<table align="center">
   <tr>
-    <td><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Batmobile%20Iteration%201/Top%20View.jpg"  width="200" height="400" /></td>
-    <td><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Batmobile%20Iteration%201/Bottom%20View.jpg" width="200" height="400" /></td>
+    <td><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Batmobile%20Iteration%201/Top%20View.jpg"  width="300" /></td>
+    <td><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Batmobile%20Iteration%201/Bottom%20View.jpg" width="300"/></td>
   </tr>
   <tr>
-    <td><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Batmobile%20Iteration%201/Right%20View.jpg" width="200" height="400" /></td>
-    <td><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Batmobile%20Iteration%201/Left%20View.jpg" " width="200" height="400" /></td>
+    <td><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Batmobile%20Iteration%201/Right%20View.jpg" width="300" /></td>
+    <td><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Batmobile%20Iteration%201/Left%20View.jpg" " width="300" /></td>
   </tr>
     <tr>
-    <td><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Batmobile%20Iteration%201/Front%20View.jpg" width="200" height="400" /></td>
-    <td><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Batmobile%20Iteration%201/Back%20View.jpg" " width="200" height="400" /></td>
+    <td><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Batmobile%20Iteration%201/Front%20View.jpg" width="300" /></td>
+    <td><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Batmobile%20Iteration%201/Back%20View.jpg" " width="300" /></td>
   </tr>
 </table>
 
@@ -223,27 +213,26 @@ During testing, we found that placing the battery toward the rear of the chassis
 
 With less weight on the front wheels, the available front-wheel traction decreased, particularly during faster movement and sharp turns. At higher speeds, the front wheels would lose traction and lift slightly, which reduced steering effectiveness and made the robot less stable and predictable while turning.
 
-<table>
+<table align="center">
   <tr>
-    <td><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Batmobile%20Iteration%202/Top%20View.jpg"  width="200" height="400" /></td>
-    <td><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Batmobile%20Iteration%202/Bottom%20View.jpg" width="200" height="400" /></td>
+    <td><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Batmobile%20Iteration%202/Top%20View.jpg"  width="300" /></td>
+    <td><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Batmobile%20Iteration%202/Bottom%20View.jpg" width="300" /></td>
   </tr>
   <tr>
-    <td><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Batmobile%20Iteration%202/Front%20View.jpg" width="200" height="400" /></td>
-    <td><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Batmobile%20Iteration%202/Bottom%20View.jpg" " width="200" height="400" /></td>
+    <td><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Batmobile%20Iteration%202/Front%20View.jpg" width="300" /></td>
+    <td><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Batmobile%20Iteration%202/Bottom%20View.jpg" " width="300" /></td>
   </tr>
     <tr>
-    <td><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Batmobile%20Iteration%202/Right%20View.jpg" width="200" height="400" /></td>
-    <td><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Batmobile%20Iteration%202/Left%20View.jpg" " width="200" height="400" /></td>
+    <td><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Batmobile%20Iteration%202/Right%20View.jpg" width="300" /></td>
+    <td><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Batmobile%20Iteration%202/Left%20View.jpg" " width="300" /></td>
   </tr>
 </table>
 
 ## Third Iteration  Physical Fit
 
-<table>
+<table align="center">
   <tr>
-    <td align="center"><strong>Chassis Base</strong><br><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/models/Model%20Images/Chassis%20Base.png" width="500
-                                                          00"></td>
+    <td align="center"><strong>Chassis Base</strong><br><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/models/Model%20Images/Chassis%20Base.png" width="500"></td>
   </tr>
 </table>
 
@@ -263,18 +252,18 @@ The LEGO peg holes were increased by 0.1 mm after testing showed that the origin
 
 Before finalizing the design, we test-fitted each clamp with its corresponding physical component. This helped us check that the dimensions were correct and catch any fitting issues before final assembly.
 
-<table>
+<table align="center">
   <tr>
-    <td><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Batmobile%20Iteration%203/Top%20View.jpg"  width="200" height="400" /></td>
-    <td><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Batmobile%20Iteration%203/Bottom%20View.jpg" width="200" height="400" /></td>
+    <td><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Batmobile%20Iteration%203/Top%20View.jpg"  width="300" /></td>
+    <td><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Batmobile%20Iteration%203/Bottom%20View.jpg" width="300" /></td>
   </tr>
   <tr>
-    <td><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Batmobile%20Iteration%203/Right%20View.jpg" width="200" height="400" /></td>
-    <td><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Batmobile%20Iteration%203/Left%20View.jpg" " width="200" height="400" /></td>
+    <td><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Batmobile%20Iteration%203/Right%20View.jpg" width="300" /></td>
+    <td><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Batmobile%20Iteration%203/Left%20View.jpg" " width="300" /></td>
   </tr>
     <tr>
-    <td><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Batmobile%20Iteration%203/Front%20View.jpg" width="200" height="400" /></td>
-    <td><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Batmobile%20Iteration%203/Back%20View.jpg" " width="200" height="400" /></td>
+    <td><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Batmobile%20Iteration%203/Front%20View.jpg" width="300" /></td>
+    <td><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Batmobile%20Iteration%203/Back%20View.jpg" " width="300" /></td>
   </tr>
 </table>
 
@@ -426,7 +415,8 @@ This was necessary because the inside wheel travels along a smaller circle, whil
 
 <table>
   <tr>
-    <td align="center"><strong></strong><br><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Robot%20Electronic%20Parts/MG90S%20Micro%20Servo.png" width="300"></td>
+    <td align="center"><strong></strong><br><img width="300" alt="image" src="https://github.com/user-attachments/assets/e00e6b73-4bc3-49f0-9bde-c7371f19f421" />
+</td>
   </tr>
 </table> 
 
@@ -482,7 +472,8 @@ The micro:bit is a compact board based on the Nordic nRF52833. It includes an ac
 
 <table>
   <tr>
-    <td align="center"><strong></strong><br><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Robot%20Electronic%20Parts/Raspberry%20Pi%20Pico%202%20W.png" width="300"></td>
+    <td align="center"><strong></strong><br><img width="300" alt="image" src="https://github.com/user-attachments/assets/6f336cb5-c165-4a87-bbee-f93cec0bf138" />
+</td>
   </tr>
 </table> 
 
@@ -509,7 +500,6 @@ No second board was tested against the Raspberry Pi 5. It was selected at the be
 | Camera interface | MIPI CSI-2 |
 | Connectivity | Gigabit Ethernet, Wi-Fi, Bluetooth, USB 3.0 |
 | Cooling | Active cooling required under sustained load; heatsink and fan used |
-| BOM reference cost | $153.95 CAD |
 | Main advantage | Sufficient CPU headroom for real-time computer vision |
 | Main disadvantage | Highest power draw and cooling requirement of the computing boards |
 
@@ -523,7 +513,8 @@ The Raspberry Pi 5 was chosen because the robot needs to process live camera vid
 
 <table>
   <tr>
-    <td align="center"><strong></strong><br><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Robot%20Electronic%20Parts/MPU6050.png" width="300"></td>
+    <td align="center"><strong></strong><br><img width="300" alt="image" src="https://github.com/user-attachments/assets/5257b3be-597c-4432-b325-d232f0d78f18" />
+</td>
   </tr>
 </table> 
 
@@ -533,11 +524,12 @@ The MPU6050 is a 6-DOF IMU containing a 3-axis accelerometer and 3-axis gyroscop
 
 <table>
   <tr>
-    <td align="center"><strong></strong><br><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Robot%20Electronic%20Parts/BNO055%20IMU.png" width="300"></td>
+    <td align="center"><strong></strong><br><img width="300" alt="image" src="https://github.com/user-attachments/assets/4d4c9dbd-ffe8-46c8-a220-1af270c593e4" />
+</td>
   </tr>
 </table> 
 
-The BNO055 is a 9-DOF IMU containing a 3-axis accelerometer, 3-axis gyroscope, and 3-axis magnetometer. Instead of requiring the Raspberry Pi Pico 2 W to perform all of the sensor-fusion calculations, the BNO055 can provide ready-to-use orientation data. The main trade-off is that the BNO055 is more expensive and has a lower output rate than the MPU6050.
+The BNO055 is a 9-DOF IMU containing a 3-axis accelerometer, 3-axis gyroscope, and 3-axis magnetometer which can provide ready-to-use orientation data processed by the inbuilt 32-bit Cortex-M0+ microprocessor. The main trade-off is that the BNO055 is more expensive and has a lower output rate than the MPU6050.
 
 ### Comparison Table
 
@@ -554,7 +546,6 @@ The BNO055 is a 9-DOF IMU containing a 3-axis accelerometer, 3-axis gyroscope, a
 | Current in 9-DOF fusion at 100 Hz | — | Approximately 12.3 mA |
 | Orientation output | — | Euler angles and quaternions |
 | Interfaces | — | I²C, UART |
-| Typical / BOM reference cost | Approximately $3–10 | $38.38 CAD |
 | Main advantage | Low cost and high output rate | Integrated sensor fusion and improved heading reference |
 | Main disadvantage | Yaw drift and additional sensor-fusion software | Higher cost and lower output rate |
 
@@ -580,7 +571,8 @@ We initially chose the DRV8871 because it was compact, efficient, and its single
 
 <table>
   <tr>
-    <td align="center"><strong></strong><br><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Robot%20Electronic%20Parts/L298N%20Motor%20Driver.png" width="300"></td>
+    <td align="center"><strong></strong><br><img width="300" alt="image" src="https://github.com/user-attachments/assets/0d7c8b0f-6fd2-4117-afc6-e6f9259512d4" />
+</td>
   </tr>
 </table> 
 
@@ -595,7 +587,6 @@ We replaced the DRV8871 with an L298N. The L298N is a dual H-bridge, so the seco
 | Voltage drop | Low | Approximately 1.5–2 V |
 | Motor voltage from 12 V battery | Up to motor supply voltage | Approximately 10–10.5 V |
 | Thermal management | Integrated thermal protection | Heatsink / high thermal mass |
-| BOM reference cost | $6.99 CAD | $11.99 CAD |
 | Main advantage | Compact, efficient, and single-channel | Reliable under our tested conditions |
 | Main disadvantage | Could not handle our tested 12 V system | Larger size and higher voltage loss |
 
@@ -607,7 +598,8 @@ We selected the L298N as our final motor driver because it proved to be the most
 
 <table>
   <tr>
-    <td align="center"><strong></strong><br><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Robot%20Electronic%20Parts/Pi%20Camera%203%20Wide.png" width="300"></td>
+    <td align="center"><strong></strong><br><img width="300" alt="image" src="https://github.com/user-attachments/assets/23484171-d598-40da-8e20-9e74c6930ccc" />
+</td>
   </tr>
 </table> 
 
@@ -621,13 +613,14 @@ The main advantage of using a wide-angle camera is its versatility and coverage.
 
 <table>
   <tr>
-    <td align="center"><strong></strong><br><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Robot%20Electronic%20Parts/TOF%20Sensor.png" width="300"></td>
+    <td align="center"><strong></strong><br><img width="300" alt="image" src="https://github.com/user-attachments/assets/ba1812a8-16b5-4562-962e-031916a39f9b" />
+</td>
   </tr>
 </table> 
 
 For parking, we considered two options: a VL53L0X Time-of-Flight (TOF) sensor and the motor encoder already built into our JGA25-371 motor. We compared them based on accuracy, reliability, hardware requirements, and how easily they could be integrated into our existing system.
 
-The VL53L0X is a Time-of-Flight distance sensor that uses infrared light to measure the distance to an object. It can measure distances up to approximately 2 m and communicates with the Raspberry Pi Pico 2 W through I²C. Its main advantage is that it measures the environment directly, so wheel slip does not directly affect the measured distance. However, its limited field of view makes its accuracy dependent on the sensor’s position and orientation. It would also add another I²C device for a task that could be done using hardware already built into our drivetrain.
+The VL53L0X is a Time-of-Flight distance sensor that uses infrared light to measure the distance to an object. It can measure distances up to approximately 2 m and communicates with the Raspberry Pi through I²C. Its main advantage is that it measures direct distance so wheel slip does not directly affect the measured distance. However, using it requires resoldering the wires so the Raspberry Pi's I2C port can be used by both IMU and TOF sensors. Also, the VL53L0X's 25 degree field of view must be programmatically restricted or shifted  by configuring the Region of Interest (ROI) to a 4 x 4 SPAD range using the STMicroelectronics API.
 
 The JGA25-371 motor has an integrated encoder that allows the Raspberry Pi Pico 2 W to monitor motor rotation and estimate how far the robot has travelled. Our selected 9.6:1 motor has a listed no-load speed of approximately 620 RPM, a rated-load speed of approximately 500 RPM, and approximately 0.9 kg·cm of rated-load torque. The main advantage is that the encoder reuses hardware already built into the drivetrain, so no additional distance sensor is needed. The trade-off is that it measures wheel movement rather than the robot’s actual position, meaning wheel slip and small differences in wheel diameter can introduce error.
 
@@ -647,9 +640,9 @@ The JGA25-371 motor has an integrated encoder that allows the Raspberry Pi Pico 
 
 We selected the motor encoder for parking because the parking area provides a relatively controlled environment where repeatable wheel movement is sufficient for our parking sequence. Using the encoder also simplifies our sensor architecture by removing a dedicated distance sensor and reducing the number of devices using the I²C bus.
 
-This allowed us to keep the BNO055 as our primary I²C sensor while using the existing motor encoder for the distance information needed during parking. Although the encoder can introduce some error from wheel slip, the simpler setup and reuse of existing hardware made it the better choice for our robot.
+This allowed us to keep the BNO055 as the sole sensor connected to the Raspberry Pi's I²C port while using the existing motor encoder for the distance information needed during parking. Although the encoder can introduce some error from wheel slip, the simpler setup and reuse of existing hardware made it the better choice for our robot.
 
-#### Control, Display & Support System
+# Control, Display & Support System
 
 The robot uses several supporting electronic components to improve the reliability, organization, and usability of the overall system. These components handle connections between the main electronics, provide information during testing, and regulate power for the robot’s different systems.
 
@@ -665,13 +658,13 @@ The XL4015 buck converter was selected to efficiently reduce the battery voltage
 
 <table>
   <tr>
-    <td align="center"><strong></strong><br><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/Elec/3D%20Circuit%20Schematic.png" width="600"></td>
+    <td align="center"><strong></strong><br><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/Elec/3D%20Circuit%20Schematic.png" width="900"></td>
   </tr>
 </table> 
 
 <table>
   <tr>
-    <td align="center"><strong></strong><br><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/Elec/Circuit%20Diagram.png" width="600"></td>
+    <td align="center"><strong></strong><br><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/Elec/Circuit%20Diagram.png" width="900"></td>
   </tr>
 </table> 
 
@@ -679,7 +672,8 @@ The XL4015 buck converter was selected to efficiently reduce the battery voltage
 
 <table>
   <tr>
-    <td align="center"><strong></strong><br><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Robot%20Electronic%20Parts/12V%20Lithium%20Battery.png" width="600"></td>
+    <td align="center"><strong></strong><br><img width="300" alt="image" src="https://github.com/user-attachments/assets/f1acd160-ed58-42e3-bed4-909b118c5ac9" />
+</td>
   </tr>
 </table> 
 
@@ -692,41 +686,18 @@ The 12V output matches the nominal voltage of the drive motor and L298N motor dr
 | Chemistry | Lithium-ion |
 | Nominal pack voltage | 12V |
 | Rated capacity | 8800 mAh |
-| BOM reference cost | $27.99 CAD |
 | Main advantage | Matches the drivetrain's 12V nominal voltage |
 | Main disadvantage | Requires appropriate protection and charging procedures |
 
 ## Steering Servo: MG90S vs. SG90
 
-### SG90
-
-<table>
-  <tr>
-    <td align="center"><strong></strong><br><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Robot%20Electronic%20Parts/SG90.png" width="600"></td>
-  </tr>
-</table> 
-
-
-The SG90 is a low-cost micro servo with plastic internal gears. It is easy to find and suitable for lightweight applications, but the plastic gears are more likely to strip under repeated stall or impact loads. This is a concern for steering because the servo can experience sudden loads when a wheel contacts a wall, pillar, or other obstacle.
-
-### MG90S
-
-<table>
-  <tr>
-    <td align="center"><strong></strong><br><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Robot%20Electronic%20Parts/MG90S.png" width="600"></td>
-  </tr>
-</table> 
-
-The MG90S is similar in size to the SG90 but uses metal internal gears, making it better suited for the repeated mechanical loads experienced by the steering system.
-
-### Comparison Table
-
 | Specification | SG90 | MG90S |
 |---|---|---|
+| Image | <img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Robot%20Electronic%20Parts/SG90.png" width="300"> | <img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/Robot%20Electronic%20Parts/MG90S.png" width="300"> |
+| Description | The SG90 is a low-cost micro servo with plastic internal gears. It is easy to find and suitable for lightweight applications, but the plastic gears are more likely to strip under repeated stall or impact loads. This is a concern for steering because the servo can experience sudden loads when a wheel contacts a wall, pillar, or other obstacle. | The MG90S is similar in size to the SG90 but uses metal internal gears, making it better suited for the repeated mechanical loads experienced by the steering system. |
 | Gear material | Plastic | Metal |
 | Stall torque | Approximately 1.5–1.8 kg·cm at 4.8–6V | Approximately 1.8–2.2 kg·cm at 4.8–6V |
 | Operating voltage | 4.8–6V | 4.8–6V |
-| BOM reference cost | $4.99 CAD | $17.02 CAD per pair |
 | Main advantage | Very low cost and easy availability | Greater resistance to repeated stall and impact loads |
 | Main disadvantage | Plastic gears can strip under heavy loading | Higher cost than the SG90 |
 
@@ -767,9 +738,9 @@ Using LEGO wheels reduced the amount of mechanical design and testing required f
 
 ## Two Board Architecture
 
-The Raspberry Pi 5 acts as the robot’s main decision-making computer. It processes the camera input and runs the higher-level logic in Python, including lane following, obstacle avoidance, and the state machine. The Pi 5 sends movement commands to the Raspberry Pi Pico 2 W, which acts as the real-time controller.
+The Raspberry Pi 5 acts as the robot’s main decision-making computer. It processes the vision input from the wide-angle camera and vehicle orientation input from the IMU and processes the higher-level logic in Python for lane following, obstacle avoidance, and the state machine. The Pi 5 sends movement commands to the Raspberry Pi Pico 2 W, which acts as the real-time controller.
 
-The Pico runs a single program directly from flash instead of a full operating system, allowing it to handle low-latency control tasks reliably. It reads the BNO055 IMU directly and converts commands from the Pi 5 into low-level signals for the MG95S servo and L298N motor driver. The Pico can also send status information back to the Pi 5, allowing the two boards to communicate during operation.
+The Pico runs a single program directly from flash instead of a full operating system, allowing it to handle low-latency control tasks reliably. It converts commands from the Pi 5 into low-level signals for the MG90S servo and L298N motor driver. The Pico can also send status information back to the Pi 5, allowing the two boards to communicate during operation.
 
 ### Why Two Boards?
 
@@ -807,12 +778,12 @@ All components share a common ground, which provides the same electrical referen
 | Raspberry Pi 5 (board) | Pi 5 | ~800 mA @ 5 V | Idle draw is roughly 4 to 5 W, increasing toward 12 W under heavy CPU/USB load. |
 | Sainsmart 5MP Camera | Pi 5 | ~250 mA | OV5647-based Raspberry Pi camera modules are commonly rated around 300 mA peak. The estimated running draw is slightly below this. |
 | Encoder (Hall-effect) | Pi 5 | ~10 mA | Two-channel Hall-effect encoders on small gearmotors draw a maximum of about 10 mA. |
-| Pi 5 channel total | — | ≈1.06 A | Sum of the three components above. |
+| BNO055 IMU | Pi 5 | ~12 mA | The maximum total supply current for the BNO055 is 12.3 mA. |
+| Pi 5 channel total | — | ≈1.07 A | Sum of the four components above. |
 | Raspberry Pi Pico 2 W (board) | Pico | ~100 mA @ 5 V | Community measurements for Pico/Pico W boards are typically in the 80 to 130 mA range. |
 | MG90S Servo | Pico | ~150 mA average | These servos draw about 10 mA when idle and 120 to 250 mA while moving, with a stall current of up to about 800 mA. |
-| BNO055 IMU | Pico | ~12 mA | The maximum total supply current for the BNO055 is 12.3 mA. |
 | L298N Logic Pin | Pico | ~36 mA | The L298N module's logic supply draws 0 to 36 mA. |
-| Pico channel total | — | ≈0.30 A | Sum of the four components above. |
+| Pico channel total | — | ≈0.29 A | Sum of the three components above. |
 | Buck Converter Output | Both channels | ≈1.36 A | Sum of the Pi 5 and Pico channel totals. |
 | DC Gear Motor | L298N | ~300 mA nominal (estimated) | A 12 V JGA25-370-style gearmotor draws about 50 mA at no load and up to 1200 mA when stalled. |
 
@@ -820,7 +791,7 @@ All components share a common ground, which provides the same electrical referen
 
 ### 5 V Power Requirement
 
-The 5 V rail powers the Raspberry Pi 5 and Raspberry Pi Pico 2 W. The connected electronics require approximately 6.8 W. Accounting for approximately 85% buck converter efficiency, the battery must supply:
+The 5 V rail powers the Raspberry Pi 5 and the Waveshare expansion board hosting the Raspberry Pi Pico 2 W. The connected electronics require approximately 6.8 W. Accounting for approximately 85% buck converter efficiency, the battery must supply:
 
 $$
 P_{battery} = \frac{6.8W}{0.85} \approx 8.0W
@@ -875,9 +846,9 @@ The Open Challenge uses a combination of camera-based wall following and IMU hea
 
 <table align="center">
   <tr>
-    <td align="center"><strong></strong><br><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/obstacle%20flowchart.png" width="600"></td>
+    <td align="center"><strong></strong><br><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/open_challenge_flowchart.jpg" width="900"></td>
   </tr>
-</table>
+</table> 
 
 ### 1. Get Sensor Inputs
 
@@ -888,33 +859,19 @@ The Open Challenge uses a combination of camera-based wall following and IMU hea
 
 - The camera calculates a steering correction based on the difference in wall area between the left and right sides.
 
-$$
-cam\_steer = DEFAULT\_STEER\_ANGLE + KP \times (left\_area - right\_area)
-$$
+`cam_steer = DEFAULT_STEER_ANGLE + KP * (left_area - right_area)`
 
 - The IMU calculates a correction based on the difference between the current and desired heading.
 
-$$
-gyro\_steer = DEFAULT\_STEER\_ANGLE - KP\_GYRO \times heading\_error
-$$
+`gyro_steer = DEFAULT_STEER_ANGLE - KP_GYRO * heading_error`
 
 - The final steering value combines both corrections, with the IMU given a higher weight:
 
-$$
-steering\_value = 0.7 \times gyro\_steer + 0.3 \times cam\_steer
-$$
-
-<table align="center">
-  <tr>
-    <td align="center"><strong></strong><br><img src="https://github.com/vaishvi-shah/wro-fe-2026/blob/main/photos/steering%20flow%20chart.png" width="600"></td>
-  </tr>
-</table> 
+`steering_value = 0.7 * gyro_steer + 0.3 * cam_steer`
 
 ### 3. Clamp Steering
 
-$$
-steering\_value = max(45, min(135, steering\_value))
-$$
+`steering_value = max(45, min(135, steering_value))`
 
 This helps keep the steering within the Ackermann steering range.
 
@@ -924,9 +881,10 @@ This helps keep the steering within the Ackermann steering range.
 - The first detected colour locks the direction for the run.
 - `SAFE_TURN_AREA` sets the minimum area needed before the robot makes a turn, helping it avoid turning too early in different course configurations.
 
-
+```
 IF left_area > SAFE_TURN_AREA:
     turn(direction)
+```
 
 ## Obstacle Challenge Code
 
@@ -1003,8 +961,6 @@ The obstacle avoidance section works alongside wall following, using colour dete
 - The obstacle is considered avoided when it is either completely out of view or `obstacle_reached` is true while the obstacle is still visible.
 - Once cleared, the robot returns to `WALL_FOLLOW`.
 
-
-
 ### Parking States
 
 `OUT_PARKING` and `IN_PARKING` are both parking states that occur once during the challenge:
@@ -1037,5 +993,5 @@ The crontab command can then be modified to redirect output to this file, allowi
 
 ### CAD and Wiring Files
 
-All STL files and images of the parts used for the robot's CAD and 3D-printed components are included in the repository under the Models folder. wiring diagrams are also provided, allowing the robot's physical structure and electronic connections to be reproduced alongside the software and challenge implementations.
+All STL files and images of the parts used for the robot's CAD and 3D-printed components are included in the repository under the [Models](https://github.com/vaishvi-shah/wro-fe-2026/tree/main/models) folder. wiring diagrams are also provided, allowing the robot's physical structure and electronic connections to be reproduced alongside the software and challenge implementations.
 
