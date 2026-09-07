@@ -33,7 +33,8 @@ from picamera2 import Picamera2
 from lib.frames import Frame
 import time
 import serial
-import lib.bno055 as bno055 
+import lib.bno055 as bno055
+import lib.motor_control as motor_control
 
 
 CALIBRATION_FILE = "lib/bno055_calibration.json"
@@ -42,6 +43,9 @@ sensor = bno055.sensor
 bno055.load_calibration()      # apply saved accel/gyro/mag offsets if present
 controller = "FWD"
 sent_steer = 0
+sent_speed = None    # last speed actually sent -- a phase/state transition that changes speed or
+sent_controller = None  # controller (e.g. FWD->BWD) without also moving steering by >=3 must still
+                        # resend, or the robot keeps executing whatever was last physically sent
 SHOW_VID = True                 # toggle live OpenCV preview window
 DEFAULT_STEER_ANGLE = 100        # neutral/straight steering angle
 LINE_COUNT = 12                # number of colour-line crossings before stopping
@@ -302,6 +306,7 @@ while True:
     if stop:
         if time.time() - stop_time > 2:
             speed = 0
+            motor_control.stopMotor()
             ser.write(f"{DEFAULT_STEER_ANGLE},0,STOP,0,test\n".encode())  # send the fixed stop command
             ser.flush()
             break
@@ -337,17 +342,22 @@ while True:
 
 
 
-    if abs(sent_steer - steering) >=3:
+    if abs(sent_steer - steering) >= 3 or speed != sent_speed or controller != sent_controller:
+        motor_control.driveMotor(speed * 2.54, controller)
         ser.write(f"{steering-5},{speed},{controller},{LINE_COUNT},'test'\n".encode())  # send steering+speed to the microcontroller each loop
         sent_steer = steering
+        sent_speed = speed
+        sent_controller = controller
         ser.flush()
     time.sleep(0.01)
     # print(f"sent value: heading: {steering} speed: {speed}")
     if cv2.waitKey(1) & 0xFF == ord('q'):  # manual quit key also sends the stop command
+        motor_control.stopMotor()
         ser.write(f"{DEFAULT_STEER_ANGLE},0,STOP,0,test\n".encode())
         ser.flush()
         break
 
+motor_control.stopMotor()
 ser.write(f"{DEFAULT_STEER_ANGLE},0,STOP,0,test\n".encode())
 ser.close()
        

@@ -16,16 +16,12 @@ import lib.bno055 as bno055
 import board
 import adafruit_vl53l0x
 from enum import Enum
+import lib.motor_control as motor_control
 
 
 class State(Enum):
-    """Drive-mode only. TURNING is a first-class member and takes priority
-    over WALL_FOLLOW/AVOIDING_OBSTACLE: as soon as a colour-line trips
-    pending_turn, the main loop dispatches into run_turning() every frame
-    instead of either of those, until the turn actually executes. REVERSING
-    is still checked ahead of it, so an in-progress proximity-safety backup
-    isn't cut short mid-manoeuvre -- see the dispatch order in the main
-    loop."""
+    """Drive mode. TURNING takes priority over WALL_FOLLOW/AVOIDING_OBSTACLE
+    once a colour line trips pending_turn; REVERSING still runs ahead of it."""
     OUT_PARKING = "OUT_PARKING"  # one-time manoeuvre at startup, before WALL_FOLLOW ever runs -- see out_parking_start
     WALL_FOLLOW = "WALL_FOLLOW"
     AVOIDING_OBSTACLE = "AVOIDING_OBSTACLE"
@@ -42,10 +38,8 @@ bno055.initialize()            # boot the IMU over I2C
 sensor = bno055.sensor
 bno055.load_calibration()      # apply saved accel/gyro/mag offsets if present
 
-# ToF (VL53L0X) shares the same I2C bus as the IMU (IMU=0x28, ToF=0x29, see tof_tester.py) --
-# activated right here alongside it, not lazily later, since board.I2C() must be grabbed
-# once the bus is already up. Wrapped so a missing/failed ToF doesn't take the whole
-# script down -- tof stays None and get_tof_distance() below just reports unavailable.
+# ToF (VL53L0X) shares the I2C bus with the IMU (IMU=0x28, ToF=0x29) -- init'd here, right
+# after the bus is up. Wrapped so a missing/failed ToF doesn't take the script down.
 tof = None
 try:
     tof_i2c = board.I2C()
@@ -68,9 +62,9 @@ def get_tof_distance():
 
 controller = "FWD"
 sent_steer = 0
-sent_speed = None    # last speed actually sent -- a phase/state transition that changes speed or
-sent_controller = None  # conqtroller (e.g. FWD->BWD) without also moving steering by >=3 must still
-                        # resend, or the robot keeps executing whatever was last physically sent
+sent_speed = None       # last speed actually sent
+sent_controller = None  # last direction (FWD/BWD) actually sent -- a speed/direction change
+                         # must resend even if steering hasn't moved >=3
 SHOW_VID = True                 # toggle live OpenCV preview window
 DEFAULT_STEER_ANGLE = 90        # neutral/straight steering angle, sent _as 100 + this
 LINE_COUNT = 12                 # number of colour-line crossings before stopping1Q
@@ -97,21 +91,14 @@ PARK_SQUARE_SIZE = 10  # small debug squaQre drawn during IN_PARKING, tune on tr
 PARK_SQUARE_CENTER_Y = 75  # tune on track
 STOP_AFTER_PARK_CLEARED = True  # TEMPORARY: hold once park_cleared instead of continuing into
                                  # the force turn -- flip to False to resume the rest of IN_PARKING
-# Inner-wall tripwire: 3 points per turn direction, staggered diagonally toward the
-# bottom-inner corner of the frame (closest to the robot, on the side it'll pass on
-# after the locked-in turn). If obstacle-avoidance steering hugs that side tightly
-# enough to put one of these points on black, that's a frame's warning before the
-# robot actually clips the wall. CWR/CCL sets are mirror images of each other. Tune on track.
-INNER_WALL_TRIPWIRE_CWR = [(300, 190), (305, 205), (310, 220)]  # near right edge, staggered down-right
+# Inner-wall tripwire: points near the turn-side edge that warn if avoidance steering is
+# hugging the wall too tightly, before the robot actually clips it. Tune on track.
+INNER_WALL_TRIPWIRE_CWR = [(300, 190), (305, 205), (310, 220)]  # near right edge
 INNER_WALL_TRIPWIRE_CCL = [(20, 190), (15, 205), (10, 220)]     # near left edge, mirror of CWR
-INNER_WALL_SOFT_KP_SCALE = 0.4  # damps KP/KP_GYRO during a tripwire fallback -- soft peel-off, not a sharp correction
+INNER_WALL_SOFT_KP_SCALE = 0.4  # damps KP/KP_GYRO during a tripwire fallback
 
-state = State.WALL_FOLLOW # authoritative: every branch below dispatches on this. Starts here so the
-                            # out-parking manoeuvre runs before anything else; nothing ever sets state
-                            # back to OUT_PARKING once it leaves, so it's guaranteed one-time.
-stopping = False    # true once the stop sequence has started -- independent of `state`, which
-                    # gets reassigned every frame by the obstacle-detection branch and would
-                    # otherwise reset stop_time on every iteration
+state = State.WALL_FOLLOW  # every branch below dispatches on this
+stopping = False  # true once the stop sequence has started
 reversing_time = None  # timestamp REVERSING was entered
 out_parking_start = None  # timestamp the OUT_PARKING manoeuvre began; None until the first OUT_PARKING frame
 out_parking_steer = None  # locked-in max-steer value (opposite the closer wall) for the OUT_PARKING manoeuvre
@@ -121,30 +108,19 @@ park_turn_called = False
 park_turned = False
 park_cleared = False
 park_cleared_time = None
-park_force_turn_called = False  # guards the one-shot turn(direction) call that sets the
-                                 # force-turn's target heading (desired_heading +/- 90)
-park_force_turn_done = False    # true once gyro reads within 5 deg of that target heading
-park_force_turn_start = None    # timestamp the forced turn began -- tune the 5 deg gyro
-                                 # threshold against this once park_force_turn_duration is known
-park_force_turn_duration = None # how long the forced turn actually took, once it completes
-park_force_turn_obstacle_done = False  # true once the post-force-turn obstacle check has run (and,
-                                        # if an obstacle was seen, the 1s reverse away from it is done)
-park_force_turn_obstacle_reverse_start = None  # timestamp a red/green obstacle was seen right after the
-                                                # force turn -- not None while backing away from it for 1s
-                                                # (opposite lock from the force turn's own steering)
-park_final_reverse_start = None     # timestamp the closing 1.5s reverse began
-park_final_reverse_done = False     # true once that 1.5s has elapsed
-park_final_reverse_started = False  # true once black-then-white has been seen at (151, 90) --
-                                     # gates the straight reverse itself, held before that
-park_final_reverse_black_seen = False  # true once that same point has read black at least
-                                        # once -- white only counts as the start trigger after
-                                        # this, so a point that's white from the start doesn't
-                                        # immediately (falsely) trigger the reverse
-park_final_turn_called = False      # guards the one-shot turn(direction) call that adds
-                                     # another 90 to desired_heading for the closing turn
-park_final_turn_done = False        # true once gyro reads within 5 deg of that target heading
-park_straight_gap = None  # reference wall_x, captured the first time it's visible after the
-                          # turn; steering then holds the wall at this same x
+park_force_turn_called = False   # guards the one-shot turn() call for the force-turn heading
+park_force_turn_done = False     # true once gyro is within 5 deg of that target heading
+park_force_turn_start = None     # timestamp the forced turn began
+park_force_turn_duration = None  # how long the forced turn took, once it completes
+park_force_turn_obstacle_done = False  # true once the post-force-turn obstacle check has run
+park_force_turn_obstacle_reverse_start = None  # timestamp an obstacle was seen right after the force turn
+park_final_reverse_start = None     # timestamp the closing reverse began
+park_final_reverse_done = False     # true once the closing reverse has finished
+park_final_reverse_started = False  # true once black-then-white has been seen at (151, 90)
+park_final_reverse_black_seen = False  # true once that point has read black at least once
+park_final_turn_called = False      # guards the one-shot turn() call for the closing turn
+park_final_turn_done = False        # true once gyro is within 5 deg of the closing turn's target
+park_straight_gap = None  # reference wall_x, held constant once captured after the turn
 
 obs_on_screen = False
 obstacle_color = "undefined"
@@ -155,20 +131,13 @@ steering = DEFAULT_STEER_ANGLE
 speed = 0
 pending_turn = False  # true if a turn is pending (colour line seen, but not yet executed)
 last_turn_time = 0  # timestamp of the last executed turn; gates re-detecting the same patch of colour
-matching_obstacle_seen = False  # true once run_turning has seen the matching-colour (veto)
-                                 # obstacle during the current pending_turn window -- once it then
-                                 # clears (obs_on_screen goes False), the robot keeps gyro-crawling
-                                 # for MATCHING_OBSTACLE_CLEAR_DELAY (see obs_cleared_time) before
-                                 # turn() fires and hands off to POST_OBSTACLE_TURN. Reset to False
-                                 # wherever pending_turn is newly set to True (a fresh turn window).
-obs_cleared_time = None  # timestamp the matching-colour obstacle first went out of view during the
-                          # current pending_turn window -- None until then (see run_turning).
-avoiding_obstacle_cleared_time = None  # timestamp the obstacle AVOIDING_OBSTACLE was tracking first
-                                        # went out of view -- None until then (see run_avoiding_obstacle).
-post_obstacle_turn_start = None  # timestamp POST_OBSTACLE_TURN began -- see run_post_obstacle_turn()
-cam_error = None  # last known obstacle-avoidance horizontal pixel error; None until the avoidance block first sets it
-cam_error_y = None  # last known obstacle-avoidance vertical pixel error (robot vs. target_y); same lifecycle as cam_error
-last_target = None  # last known black_wall_x, reused only when this frame's row lookup misses
+matching_obstacle_seen = False  # true while run_turning is waiting out a matching-colour obstacle veto
+obs_cleared_time = None  # timestamp the matching-colour obstacle first went out of view (see run_turning)
+avoiding_obstacle_cleared_time = None  # timestamp the tracked obstacle first went out of view (see run_avoiding_obstacle)
+post_obstacle_turn_start = None  # timestamp POST_OBSTACLE_TURN began
+cam_error = None  # last known obstacle-avoidance horizontal pixel error
+cam_error_y = None  # last known obstacle-avoidance vertical pixel error
+last_target = None  # last known black_wall_x, reused when this frame's row lookup misses
 
 prev_wall_error = None  # last frame's (left_area - right_area), for the KD term in navigate_wall
 prev_wall_error_time = None  # timestamp prev_wall_error was captured
@@ -198,11 +167,8 @@ orange_range = [
     [np.array([10, 40, 70]), np.array([27, 255, 255])]
 ]
 
-# S widened to the full 0-255 range -- any hue/tint counts as "black" as
-# long as it's dark enough (V), so shadows and colour-cast dark surfaces
-# (not just true desaturated gray/black) are included too.
-# V widened from 60 to 90 to catch dimmer/shadowed black -- stays below
-# white_range's V>=100 floor so the two don't overlap.
+# S spans the full range so any dark, colour-cast surface counts as black, not just true gray.
+# V<=90 stays below white_range's V>=100 floor so the two don't overlap.
 black_range = [
     [np.array([0, 0, 0]), np.array([180, 255, 90])]
 ]
@@ -224,16 +190,9 @@ magenta_range = [  # parking-bay marker colour, same range as parking.py
     [np.array([150, 50, 60]), np.array([175, 255, 255])]
 ]
 
-white_range = [  # low saturation, high value -- only checked whole-frame during the
-    # straight-reverse leg of IN_PARKING, not part of parking_frame's usual groups.
-    # Widened from V>=200/S<=60 to also catch dimmer/shadowed and slightly-tinted white,
-    # then again to V>=100 so light grey tones count too.
+white_range = [  # low saturation, high value -- only checked during IN_PARKING's straight-reverse leg
     [np.array([0, 0, 100]), np.array([180, 90, 255])]
 ]
-
-
-# Function to navigate straight along the wall based on the number of black pixels on either wall
-# if more black on a wall, turn steering the other way proportional to difference of black pixels
 
 
 desired_heading = bno055.get_heading()
@@ -290,16 +249,12 @@ def angle_error(current, target):
 
 gyro_prev_error = None    # last frame's heading error, for the derivative term
 gyro_prev_time = None     # timestamp that error was captured
-gyro_prev_target = None   # target_heading the above are tracking -- a new turn (different
-                           # target) resets them, so a stale slope from the previous
-                           # turn/phase doesn't spike the derivative term on frame 1
+gyro_prev_target = None   # target_heading being tracked -- resets the above when it changes
 gyro_last_derivative = 0.0  # last computed derivative, kept only for the debug overlay
 
 def gyro_only_steer(gyro_heading, target_heading):
-    """Gyro-only PD steering, no camera term -- used during IN_PARKING where the camera
-    wall-following isn't reliable. The derivative term damps oscillation/overshoot from
-    how fast the heading error is changing, and resets whenever target_heading changes
-    (i.e. a new turn) so it doesn't spike off a stale error from the previous target."""
+    """Gyro-only PD steering, no camera term -- used during IN_PARKING where the
+    camera wall-following isn't reliable."""
     global gyro_prev_error, gyro_prev_time, gyro_prev_target, gyro_last_derivative
     if gyro_heading is None:
         return DEFAULT_STEER_ANGLE
@@ -324,12 +279,8 @@ def gyro_only_steer(gyro_heading, target_heading):
     return int(max(45, min(135, DEFAULT_STEER_ANGLE - KP_GYRO * error - KD_GYRO * derivative)))
 
 def check_inner_wall_tripwire(black_mask, direction):
-    """
-    Returns True if any of the current turn direction's inner-wall tripwire points
-    (see INNER_WALL_TRIPWIRE_CWR/CCL) lands on black in this frame's mask. With no
-    direction locked in yet there's no "inner wall" side to check, so that case is
-    treated as no warning rather than guessed at.
-    """
+    """True if any of the current direction's inner-wall tripwire points is on black.
+    No direction locked in yet -> no warning."""
     if direction == "CWR":
         points = INNER_WALL_TRIPWIRE_CWR
     elif direction == "CCL":
@@ -345,20 +296,12 @@ def check_inner_wall_tripwire(black_mask, direction):
 
 
 def navigate_wall(gyro_heading, desired_heading=0, kp_scale=1.0):
-    """
-    Blends two steering estimates into one value:
-      1. Gyro term: proportional correction on heading error (gyro_heading vs desired_heading).
-      2. Camera term: proportional correction on left/right wall pixel area difference (original logic).
-    Final steering = 70% gyro term + 30% camera term, clamped to servo range [45, 135] (90 +/- 45).
-
-    `kp_scale` damps both KP and KP_GYRO below their tuned defaults -- used for a
-    softer, more cautious correction (e.g. the inner-wall tripwire fallback) without
-    touching the normal wall-follow gains.
-    """
+    """Blends gyro heading-hold and camera wall-balance into one steering value
+    (70% gyro + 30% camera, clamped to [45, 135]). kp_scale damps both gains for
+    a softer correction (e.g. the inner-wall tripwire fallback)."""
     global prev_wall_error, prev_wall_error_time
 
-    # Refresh the side frames with the latest camera capture and re-run the
-    # colour mask + contour detection so we know how much "wall" each side sees.
+    # refresh wall-pixel area for both sides
     left_frame.update(cap)
     right_frame.update(cap)
 
@@ -371,9 +314,7 @@ def navigate_wall(gyro_heading, desired_heading=0, kp_scale=1.0):
     right_area, _ = right_frame.get_areas(right_contours)
 
 
-    # Camera term: proportional on the current wall-area gap, plus a derivative
-    # term on how fast that gap is changing -- damps oscillation/overshoot from
-    # the P term alone instead of waiting for the gap itself to grow.
+    # camera term (D term disabled below -- P only for now)
     # wall_error = left_area - right_area
     # now = time.time()
     # if prev_wall_error is not None and prev_wall_error_time is not None:
@@ -442,30 +383,26 @@ left_frame = Frame(cap, 0, 80, 60, 200, colour_range=[black_range])
 right_frame = Frame(cap, 240, 320, 60, 200, colour_range=[black_range])
 bottom_frame = Frame(cap, 100, 220, 200, 240, colour_range=[blue_range, orange_range])
 middle_frame = Frame(cap, 0, 320, 40, 220, colour_range=[red_obstacle_range, green_obstacle_range])
-# Full frame width, not a narrow centre strip: during the avoidance turn the obstacle
-# drifts sideways in-frame, and a narrow ROI was clipping/losing it well before the robot
-# had actually passed it.
+# full frame width, not a narrow centre strip -- the obstacle drifts sideways during
+# the avoidance turn and a narrow ROI was losing it before the robot had passed it
 
-# Whole-screen ROI, only used once IN_PARKING starts -- replaces every other (specialised,
-# strip-watching) Frame above for the rest of the run: watches the entire frame at once for
-# red, green, black, and magenta, since during parking nothing is confined to a known strip.
+# whole-screen ROI, used once IN_PARKING starts -- replaces every other Frame above,
+# since during parking nothing is confined to a known strip
 parking_frame = Frame(cap, 0, 320, 0, 240, colour_range=[red_obstacle_range, green_obstacle_range,
                                                            black_range, magenta_range])
 
 def stop():
     print("AM STOPPING")
     time.sleep(0.01)
+    motor_control.stopMotor()
     ser.write(f"90,0,STOP,0,stop\n".encode())
     ser.flush()
 
 
 
 def run_wall_follow(gyro, cap):
-    """WALL_FOLLOW's own logic: plain wall-following steering, turn-line
-    detection + execution, and watching for a new obstacle -- if one shows up,
-    hands off to AVOIDING_OBSTACLE starting next frame (this frame still
-    drives plain wall-follow steering, not obstacle-avoidance steering; that
-    starts once AVOIDING_OBSTACLE's own branch runs next frame)."""
+    """Plain wall-following steering; detects turn lines and new obstacles,
+    handing off to AVOIDING_OBSTACLE starting next frame when one appears."""
     global steering, speed, state, obs_on_screen, direction, \
            blue_count, orange_count, pending_turn, last_turn_time, \
            matching_obstacle_seen, obs_cleared_time
@@ -484,20 +421,17 @@ def run_wall_follow(gyro, cap):
     if not pending_turn and time.time() - last_turn_time > 1.5:
         bottom_frame.update(cap)
         blue_contours, orange_contours = bottom_frame.find_contours()
-        bottom_area, bottom_colour = bottom_frame.get_areas(blue_contours, orange_contours) # if bottom_colour = 1 = blue if bottom_colour = 2 = orange
+        bottom_area, bottom_colour = bottom_frame.get_areas(blue_contours, orange_contours)  # 1=blue, 2=orange
 
-        # A large enough patch of blue/orange counts as a line crossing.
+        # a large enough patch of blue/orange counts as a line crossing
         if bottom_area > 600:
-            # First detection ever: lock in direction AND the colour we care about.
-            # After this, the other colour is completely ignored for the rest of the run.
+            # first detection locks in direction; the other colour is ignored from here on
             if not direction:
                 if bottom_colour == 1:
                     direction = "CCL"   # blue seen first -> locked to blue/left forever
                 elif bottom_colour == 2:
                     direction = "CWR"   # orange seen first -> locked to orange/right forever
 
-            # Only react to a detection if it matches the locked-in colour.
-            # (direction == "CCL" <-> blue, direction == "CWR" <-> orange)
             if direction == "CCL":
                 blue_count += 1
                 print(f"BLUE: {blue_count}")
@@ -505,41 +439,26 @@ def run_wall_follow(gyro, cap):
                 orange_count += 1
                 print(f"ORANGE: {orange_count}")
 
-            # This is the last line: count it, but don't execute a turn for it -- IN_PARKING
-            # takes over instead.
+            # the last line is counted but not turned on -- IN_PARKING takes over instead
             if orange_count < LINE_COUNT and blue_count < LINE_COUNT:
                 pending_turn = True
                 matching_obstacle_seen = False  # fresh turn window -- not yet blocked by anything
                 obs_cleared_time = None
                 if SHOW_VID:
                     cv2.putText(cap, f"{bottom_colour}",  (400, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255,255,255), 1)
+    # turn execution itself happens in run_turning(), dispatched once pending_turn is True
 
-            # else: this is the "other" colour showing up after lock-in — ignored entirely.
-    # Turn execution itself now lives entirely in run_turning() -- as soon as pending_turn
-    # goes True (just above), the main loop's dispatch routes to that starting next frame,
-    # ahead of both WALL_FOLLOW and AVOIDING_OBSTACLE.
-
-    # A real obstacle in view -- hand off to AVOIDING_OBSTACLE starting next frame.
-    # (Same slightly-odd precedence as the original: red_area>100 OR (green_area>100 AND
-    # not pending_turn), kept exactly as-is rather than "fixed" to obs_on_screen.)
+    # obstacle in view -- hand off to AVOIDING_OBSTACLE next frame
     if red_area > 100 or green_area > 100 and not pending_turn:
         state = State.AVOIDING_OBSTACLE
 
 
 def run_avoiding_obstacle(gyro, cap):
-    """AVOIDING_OBSTACLE's own logic: re-detects the obstacle fresh every
-    frame, steers toward the pass-point between it and the near wall, and
-    watches for the reverse-trigger condition -- if met, hands off to
-    REVERSING starting next frame. Counted as avoided either once the
-    obstacle's gone from view, or once |cam_error|/|cam_error_y| both drop
-    under OBSTACLE_REACHED_PX/PY (obstacle_reached) while it's still
-    visible -- i.e. the robot has actually drawn alongside its pass point,
-    not just lost sight of it. Either way, waits out
-    AVOIDING_OBSTACLE_CLEAR_DELAY (avoiding_obstacle_cleared_time tracks
-    when the avoided condition was first met) before handing back to
-    WALL_FOLLOW, instead of leaving the instant it's met. (The original's
-    "was_reversing" branch is gone -- that's REVERSING's own job now that
-    it's a separate state.)"""
+    """Re-detects the obstacle every frame and steers toward the pass-point
+    between it and the near wall. Hands off to REVERSING if the reverse-trigger
+    condition is met, or back to WALL_FOLLOW once the obstacle is avoided
+    (out of view, or within OBSTACLE_REACHED_PX/PY of the pass point) --
+    waits out AVOIDING_OBSTACLE_CLEAR_DELAY before actually handing back."""
     global steering, speed, state, obs_on_screen, obstacle_color, direction, \
            blue_count, orange_count, pending_turn, last_turn_time, \
            reversing_time, last_target, cam_error, cam_error_y, matching_obstacle_seen, \
@@ -548,13 +467,10 @@ def run_avoiding_obstacle(gyro, cap):
     steering = navigate_wall(gyro, desired_heading)  # blended gyro+camera steering, offset for serial protocol
     speed = 70
 
-    # Full-frame black/white mask -- built once per frame here and reused by both the
-    # inner-wall tripwire check below and the obstacle pass-point wall lookup further
-    # down, instead of recomputing the same cvtColor+inRange twice per frame.
+    # full-frame black mask, reused below by the tripwire check and the wall lookup
     full_hsv = cv2.cvtColor(cap, cv2.COLOR_BGR2HSV)
     full_black_mask = cv2.inRange(full_hsv, black_range[0][0], black_range[0][1])
 
-    # Update the middle frame and check for obstacles
     middle_frame.update(cap)
     red_contours, green_contours = middle_frame.find_contours()
     red_area, _ = middle_frame.get_areas(red_contours)
@@ -565,20 +481,17 @@ def run_avoiding_obstacle(gyro, cap):
     if not pending_turn and time.time() - last_turn_time > 1.5:
         bottom_frame.update(cap)
         blue_contours, orange_contours = bottom_frame.find_contours()
-        bottom_area, bottom_colour = bottom_frame.get_areas(blue_contours, orange_contours) # if bottom_colour = 1 = blue if bottom_colour = 2 = orange
+        bottom_area, bottom_colour = bottom_frame.get_areas(blue_contours, orange_contours)  # 1=blue, 2=orange
 
-        # A large enough patch of blue/orange counts as a line crossing.
+        # a large enough patch of blue/orange counts as a line crossing
         if bottom_area > 600:
-            # First detection ever: lock in direction AND the colour we care about.
-            # After this, the other colour is completely ignored for the rest of the run.
+            # first detection locks in direction; the other colour is ignored from here on
             if not direction:
                 if bottom_colour == 1:
                     direction = "CCL"   # blue seen first -> locked to blue/left forever
                 elif bottom_colour == 2:
                     direction = "CWR"   # orange seen first -> locked to orange/right forever
 
-            # Only react to a detection if it matches the locked-in colour.
-            # (direction == "CCL" <-> blue, direction == "CWR" <-> orange)
             if direction == "CCL":
                 blue_count += 1
                 print(f"BLUE: {blue_count}")
@@ -586,26 +499,18 @@ def run_avoiding_obstacle(gyro, cap):
                 orange_count += 1
                 print(f"ORANGE: {orange_count}")
 
-            # This is the last line: count it, but don't execute a turn for it -- IN_PARKING
-            # takes over instead.
+            # the last line is counted but not turned on -- IN_PARKING takes over instead
             if orange_count < LINE_COUNT and blue_count < LINE_COUNT:
                 pending_turn = True
                 matching_obstacle_seen = False  # fresh turn window -- not yet blocked by anything
                 obs_cleared_time = None
                 if SHOW_VID:
                     cv2.putText(cap, f"{bottom_colour}",  (400, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255,255,255), 1)
+    # turn execution itself happens in run_turning(), dispatched once pending_turn is True
 
-            # else: this is the "other" colour showing up after lock-in — ignored entirely.
-    # Turn execution itself now lives entirely in run_turning() -- as soon as pending_turn
-    # goes True (just above), the main loop's dispatch routes to that starting next frame,
-    # ahead of both WALL_FOLLOW and AVOIDING_OBSTACLE.
-
-    # Inner-wall tripwire -- only relevant here, while avoidance steering could be
-    # hugging the wall on the turn's own side.
     inner_wall_warning = check_inner_wall_tripwire(full_black_mask, direction)
 
-    # Debug: draw the current direction's tripwire points -- red if that specific point
-    # is on black (tripped) this frame, green otherwise.
+    # debug: tripwire points, red if tripped this frame, green otherwise
     if direction == "CWR":
         tripwire_points = INNER_WALL_TRIPWIRE_CWR
     elif direction == "CCL":
@@ -618,19 +523,14 @@ def run_avoiding_obstacle(gyro, cap):
         if SHOW_VID:
             cv2.circle(cap, (tw_x, tw_y), 4, (0, 0, 255) if tw_tripped else (0, 255, 0), -1)
 
-    # Every contour across both colours, filtered down to real blobs (drop
-    # single-pixel noise), ranked by how close its bottom edge is to the bottom of
-    # the ROI (largest y = nearest the robot). The first is the closer contour, the
-    # second (if any -- there's only ever 0 or 1 more) is the farther one.
+    # every contour across both colours, filtered to real blobs, ranked nearest-first (largest y)
     all_contours = (
     [(c, "RED") for c in red_contours if cv2.contourArea(c) > 400] +
     [(c, "GREEN") for c in green_contours if cv2.contourArea(c) > 400]
     )
     all_contours.sort(key=lambda item: item[0][:, :, 1].max(), reverse=True)
 
-    obstacle_reached = False  # true once |cam_error|/|cam_error_y| both drop under the
-                               # OBSTACLE_REACHED_PX/PY thresholds -- see the unified
-                               # avoided-check after this if/else.
+    obstacle_reached = False  # true once |cam_error|/|cam_error_y| both drop under OBSTACLE_REACHED_PX/PY
 
     if all_contours:
         closest_contour, obstacle_color = all_contours[0]
@@ -642,8 +542,6 @@ def run_avoiding_obstacle(gyro, cap):
             cv2.putText(cap, area_text, (cap.shape[1] // 2 - text_w // 2, cap.shape[0] // 2 + text_h // 2),
                         cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 0, 255), 3)
 
-        # Bounding box around the tracked obstacle, offset from the ROI crop into
-        # full-frame coordinates.
         box_x, box_y, box_w, box_h = cv2.boundingRect(closest_contour)
         if SHOW_VID:
             cv2.rectangle(cap, (box_x + middle_frame.x1, box_y + middle_frame.y1),
@@ -653,38 +551,30 @@ def run_avoiding_obstacle(gyro, cap):
 
         speed = 70
 
-        # Bottom-left corner of the bounding box for GREEN, bottom-right for RED --
-        # the pass-side corner of the box, not a point picked off the contour itself.
+        # pass-side corner of the box: bottom-left for GREEN, bottom-right for RED
         if obstacle_color == "GREEN":
             obstacle_rel_x, obstacle_rel_y = box_x, box_y + box_h
         else:
             obstacle_rel_x, obstacle_rel_y = box_x + box_w, box_y + box_h
 
-        # Contour coords are relative to middle_frame's ROI crop; offset to full-frame coords.
+        # offset from middle_frame's ROI crop into full-frame coords
         obstacle_x = int(obstacle_rel_x) + middle_frame.x1
         obstacle_y = int(obstacle_rel_y) + middle_frame.y1
 
-        # GREEN passes on the left, RED passes on the right -- if the close/large block
-        # is already sitting on its "wrong" (already-clear) half of the frame, it isn't
-        # actually boxing us in, so don't trigger a reverse for it.
+        # GREEN passes on the left, RED on the right -- a block already on its clear
+        # half of the frame isn't boxing us in, so don't trigger a reverse for it
         frame_mid_x = cap.shape[1] // 2
         wrong_side = (obstacle_color == "GREEN" and obstacle_x > frame_mid_x) or (obstacle_color == "RED" and obstacle_x < frame_mid_x)
 
-        # If the obstacle's bottom edge has pushed past 3/4 of the way down the ROI and
-        # a large area of it is still visible, we're too close to steer around it safely --
-        # hand off to REVERSING starting next frame instead.
+        # too close to steer around safely -- hand off to REVERSING next frame
         if not wrong_side and obstacle_rel_y > 0.75 * (middle_frame.y2 - middle_frame.y1) and obstacle_area > 4000:
             state = State.REVERSING
             reversing_time = time.time()
 
         ### obstacle avoidance -- finding the points to plot and follow
 
-        # Look for the closest black pixel on the pass side in a small vertical band
-        # around the obstacle's own row -- restricted to left_frame's/right_frame's own
-        # ROI columns, since those are the actual wall-watching strips. A band instead of
-        # just the exact row: when the obstacle is sitting low and right at the frame edge
-        # (e.g. slid in horizontally from outside), its own body can fully occlude the wall
-        # on that exact row even though the wall is clearly visible a few rows away.
+        # closest black pixel on the pass side, searched in a row band (not just the
+        # exact row) since the obstacle's own body can occlude the wall on its own row
         black_wall_x = None
         if 0 <= obstacle_y < full_black_mask.shape[0]:
             row_lo = max(0, obstacle_y - WALL_ROW_SEARCH_BAND)
@@ -695,30 +585,22 @@ def run_avoiding_obstacle(gyro, cap):
                 col_lo, col_hi = right_frame.x1, right_frame.x2
             _, band_xs = np.nonzero(full_black_mask[row_lo:row_hi, col_lo:col_hi])
             if band_xs.size > 0:
-                # band_xs is relative to col_lo since the mask was column-sliced -- offset back.
+                # band_xs is relative to col_lo since the mask was column-sliced -- offset back
                 if obstacle_color == "GREEN":
                     black_wall_x = int(band_xs.max()) + col_lo  # right-most black pixel in the left ROI
                 else:
                     black_wall_x = int(band_xs.min()) + col_lo  # left-most black pixel in the right ROI
             else:
-                # No wall pixel anywhere in the band either -- most likely the wall itself is
-                # out of frame at this point (e.g. obstacle right up against the very edge).
-                # Fall back to the screen edge on the pass side rather than leaving black_wall_x
-                # unset, so the pass point/line still draw instead of vanishing.
+                # no wall pixel in the band either -- fall back to the screen edge on the pass side
                 black_wall_x = 0 if obstacle_color == "GREEN" else full_black_mask.shape[1] - 1
 
-        # The wall search above only checks the obstacle's exact current row, so a single
-        # noisy frame can miss it even though the obstacle itself was found fine. Only the
-        # wall point falls back to its last known value — obstacle_x/obstacle_y always stay
-        # live so the plotted points keep tracking the robot's actual motion instead of
-        # freezing every time the wall lookup whiffs on one row.
+        # only the wall point falls back to its last known value on a miss --
+        # obstacle_x/obstacle_y always stay live
         if black_wall_x is not None:
             last_target = black_wall_x
         elif last_target is not None:
             black_wall_x = last_target
 
-        # Black ring first so the yellow fill stands out against find_contours()'s own
-        # yellow contour outlines (the dot sits right on the contour edge otherwise).
         if SHOW_VID:
             cv2.circle(cap, (obstacle_x, obstacle_y), 7, (0, 0, 0), -1)      # Black outline
             cv2.circle(cap, (obstacle_x, obstacle_y), 5, (0, 255, 255), -1)  # Yellow
@@ -729,22 +611,20 @@ def run_avoiding_obstacle(gyro, cap):
                 cv2.circle(cap, (black_wall_x, obstacle_y), 5, (0, 255, 255), -1)  # Yellow
                 cv2.line(cap, (obstacle_x, obstacle_y), (black_wall_x, obstacle_y), (255, 0, 255), 2)  # Pink
 
-            # Desired point: the midpoint between the obstacle's corner point and the black wall.
+            # target: midpoint between the obstacle's corner point and the black wall
             target_x = (obstacle_x + black_wall_x) // 2
             target_y = obstacle_y
             if SHOW_VID:
                 cv2.circle(cap, (target_x, target_y), 5, (255, 0, 0), -1)  # Blue
 
-            # Robot origin = bottom-centre of the frame (where the camera/robot sits).
+            # robot origin = bottom-centre of the frame
             heading_x = cap.shape[1] // 2
             robot_pos = (heading_x, cap.shape[0] - 1)
             if SHOW_VID:
                 cv2.line(cap, robot_pos, (target_x, target_y), (0, 255, 0), 2)  # Green
 
-            # Steer straight toward the desired point -- the camera term drives steering
-            # directly here, not blended/diluted with the gyro's heading-hold term (that
-            # term only knows about desired_heading, not the obstacle, and would fight
-            # against actually reaching the point).
+            # steer straight at the target -- camera term drives steering directly here,
+            # not blended with the gyro heading-hold term (which would fight the obstacle)
             cam_error = target_x - heading_x
             cam_error_y = robot_pos[1] - target_y
             obstacle_reached = abs(cam_error) < OBSTACLE_REACHED_PX and abs(cam_error_y) < OBSTACLE_REACHED_PY
@@ -769,10 +649,8 @@ def run_avoiding_obstacle(gyro, cap):
         steering = navigate_wall(gyro, desired_heading)  # blended gyro+camera steering, offset for serial protocol
         speed = 70
 
-    # Counted as avoided either when the obstacle's gone from view, or once we've closed
-    # to within OBSTACLE_REACHED_PX/PY of its pass point even while it's still visible.
-    # Either way, wait out AVOIDING_OBSTACLE_CLEAR_DELAY before actually handing back to
-    # WALL_FOLLOW, instead of leaving the instant the condition is first met.
+    # avoided once out of view or within reach of the pass point -- wait out
+    # AVOIDING_OBSTACLE_CLEAR_DELAY before handing back to WALL_FOLLOW
     if (not all_contours) or obstacle_reached:
         if avoiding_obstacle_cleared_time is None:
             avoiding_obstacle_cleared_time = time.time()  # first frame counted as avoided
@@ -780,51 +658,25 @@ def run_avoiding_obstacle(gyro, cap):
             state = State.WALL_FOLLOW
             avoiding_obstacle_cleared_time = None
     else:
-        avoiding_obstacle_cleared_time = None  # still avoiding it -- reset in case it flickered avoided/not
+        avoiding_obstacle_cleared_time = None  # still avoiding it -- reset in case it flickered
 
 
 def run_turning(gyro, cap):
-    """TURNING's own logic: executes a pending colour-line turn (see
-    pending_turn) once it's safe to. Dispatched ahead of WALL_FOLLOW and
-    AVOIDING_OBSTACLE every frame while pending_turn is True (see the main
-    loop) -- those two don't run at all during that window, this replaces
-    them. No obstacle-avoidance steering here at all: while waiting for the
-    safe-to-turn condition, steering just stays plain wall-follow
-    (navigate_wall, set at the top of this function) regardless of any
-    opposite-colour obstacle in view.
-
-    A matching-colour obstacle (RED for a CCL/left turn, GREEN for a
-    CWR/right turn) is handled by the two guarded `return`s right after
-    obstacle detection below: while it's visible, no wall-follow, no
-    turn-safety check, nothing else -- just crawl forward on gyro
-    heading-hold alone (gyro_only_steer, ignores the camera term entirely).
-    Once it's fully out of view, that same gyro crawl continues for
-    MATCHING_OBSTACLE_CLEAR_DELAY seconds (obs_cleared_time tracks when it
-    first cleared) before turn() actually fires -- no SAFE_TURN_AREA
-    wall-distance check either way, unlike the opposite-colour path below --
-    and hands off to POST_OBSTACLE_TURN (see run_post_obstacle_turn())
-    rather than straight to WALL_FOLLOW, so the turn itself is driven by
-    gyro-only steering for a beat instead of the normal blended wall-follow.
-    matching_obstacle_seen/obs_cleared_time reset only when a fresh colour
-    line starts a new pending_turn window (see
-    run_wall_follow/run_avoiding_obstacle).
-
-    There is no timeout fallback: the only way out of pending_turn/TURNING is
-    an actual turn() call, however long that takes.
-
-    An opposite-colour obstacle (GREEN for CCL, RED for CWR) does NOT block
-    the turn: turn() fires immediately once the safe-to-turn wall check
-    passes, and hands off to AVOIDING_OBSTACLE (rather than WALL_FOLLOW) so
-    that state picks up dodging the block starting next frame, already on
-    the new heading."""
+    """Executes a pending colour-line turn once it's safe to. Dispatched ahead of
+    WALL_FOLLOW/AVOIDING_OBSTACLE every frame while pending_turn is True. A
+    matching-colour obstacle (RED for CCL, GREEN for CWR) vetoes the turn and
+    crawls forward on gyro heading-hold until it clears, then hands off to
+    POST_OBSTACLE_TURN. An opposite-colour obstacle does not block the turn --
+    it fires immediately and hands off to AVOIDING_OBSTACLE instead. No timeout
+    fallback: the only way out of pending_turn/TURNING is an actual turn() call."""
     global steering, speed, state, obs_on_screen, obstacle_color, direction, \
            pending_turn, last_turn_time, matching_obstacle_seen, post_obstacle_turn_start, \
            obs_cleared_time
 
-    steering = navigate_wall(gyro, desired_heading)  # plain wall-follow -- stays this way the whole function, no avoidance steering
+    steering = navigate_wall(gyro, desired_heading)  # plain wall-follow, no avoidance steering
     speed = 70
 
-    # Full-frame black/white mask -- used below for the inner-wall tripwire debug overlay.
+    # used below for the inner-wall tripwire debug overlay
     full_hsv = cv2.cvtColor(cap, cv2.COLOR_BGR2HSV)
     full_black_mask = cv2.inRange(full_hsv, black_range[0][0], black_range[0][1])
 
@@ -848,9 +700,7 @@ def run_turning(gyro, cap):
                                 (direction == "CWR" and obstacle_color == "GREEN")
 
     if is_matching_obstacle:
-        # Matching-colour obstacle: crawl forward on gyro heading-hold alone (no camera
-        # term, so it doesn't react to the obstacle/wall). No turn-safety check, nothing
-        # else, until it's fully out of view (see next check below).
+        # matching-colour obstacle: crawl forward on gyro heading-hold alone until it clears
         matching_obstacle_seen = True
         obs_cleared_time = None  # still in view -- reset in case it flickered clear/back
         steering = gyro_only_steer(gyro, desired_heading)
@@ -861,9 +711,8 @@ def run_turning(gyro, cap):
         return
 
     if matching_obstacle_seen and not obs_on_screen:
-        # The matching-colour obstacle we just cleared -- keep gyro-crawling for
-        # MATCHING_OBSTACLE_CLEAR_DELAY (a couple frames' worth) before actually firing
-        # turn(), instead of turning the instant it leaves frame.
+        # obstacle just cleared -- keep gyro-crawling for MATCHING_OBSTACLE_CLEAR_DELAY
+        # before actually firing turn()
         steering = gyro_only_steer(gyro, desired_heading)
         speed = 70
         if obs_cleared_time is None:
@@ -873,9 +722,7 @@ def run_turning(gyro, cap):
                 cv2.putText(cap, "MATCHING OBS VETO (clearing -- gyro crawl)", (50, 50),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 255), 2)
             return
-        # Delay elapsed -- fire the turn now. Hands off to POST_OBSTACLE_TURN (a dedicated
-        # gyro-only-steer turn) instead of straight to WALL_FOLLOW, unlike the
-        # opposite-colour/no-obstacle turn paths below.
+        # delay elapsed -- fire the turn and hand off to POST_OBSTACLE_TURN (gyro-only)
         turn(direction)
         pending_turn = False
         last_turn_time = time.time()  # cooldown before the same patch can be counted again
@@ -883,7 +730,6 @@ def run_turning(gyro, cap):
         post_obstacle_turn_start = time.time()
         return
 
-    # Inner-wall tripwire -- avoidance steering below could be hugging the turn's own side.
     if direction == "CWR":
         tripwire_points = INNER_WALL_TRIPWIRE_CWR
     elif direction == "CCL":
@@ -896,10 +742,7 @@ def run_turning(gyro, cap):
         if SHOW_VID:
             cv2.circle(cap, (tw_x, tw_y), 4, (0, 0, 255) if tw_tripped else (0, 255, 0), -1)
 
-    # ---- turn execution: safe-to-turn wall check, matching-colour veto, opposite-colour
-    # obstacle fires the turn immediately rather than waiting on it. No avoidance
-    # steering here -- steering stays plain wall-follow (set at the top of this
-    # function) the whole time we're waiting for the safe-to-turn condition. ----
+    # ---- turn execution: safe-to-turn wall check + matching-colour veto ----
     left_frame.update(cap)
     right_frame.update(cap)
 
@@ -913,11 +756,10 @@ def run_turning(gyro, cap):
     if direction == "CCL":  # left
         if left_area < SAFE_TURN_AREA: # black area on left is small enough to turn left
             if obs_on_screen and obstacle_color == "RED":
-                pass  # matching-colour veto: wait forqq RED to clear entirely
+                pass  # matching-colour veto: wait for RED to clear entirely
             elif obs_on_screen:
-                # GREEN (opposite-colour) obstacle: fire the turn right away instead of
-                # waiting for it to clear, and explicitly hand off to AVOIDING_OBSTACLE
-                # so it starts dodging the block next frame, already on the new heading.
+                # opposite-colour (GREEN) obstacle: fire the turn immediately and
+                # hand off to AVOIDING_OBSTACLE
                 turn(direction)
                 pending_turn = False
                 last_turn_time = time.time()  # cooldown before the same patch can be counted again
@@ -932,8 +774,8 @@ def run_turning(gyro, cap):
             if obs_on_screen and obstacle_color == "GREEN":
                 pass  # matching-colour veto: wait for GREEN to clear entirely
             elif obs_on_screen:
-                # RED (opposite-colour) obstacle: same as the CCL/GREEN case -- turn
-                # immediately and explicitly hand off to AVOIDING_OBSTACLE.
+                # opposite-colour (RED) obstacle: fire the turn immediately and
+                # hand off to AVOIDING_OBSTACLE
                 turn(direction)
                 pending_turn = False
                 last_turn_time = time.time()  # cooldown before the same patch can be counted again
@@ -943,22 +785,15 @@ def run_turning(gyro, cap):
                 pending_turn = False
                 last_turn_time = time.time()  # cooldown before the same patch can be counted again
 
-    # Turn done -- hand control back to whichever of WALL_FOLLOW/AVOIDING_OBSTACLE
-    # actually applies next frame, same as AVOIDING_OBSTACLE's own obstacle-cleared
-    # handoff. No timeout fallback -- the only way out of pending_turn/TURNING is an
-    # actual turn() call.
+    # turn done -- hand control back to whichever of WALL_FOLLOW/AVOIDING_OBSTACLE applies
     if not pending_turn:
         state = State.AVOIDING_OBSTACLE if obs_on_screen else State.WALL_FOLLOW
 
 
 def run_post_obstacle_turn(gyro, cap):
-    """POST_OBSTACLE_TURN's own logic: entered only from run_turning's
-    matching-colour-obstacle-clear path (see there), right after turn()
-    already updated desired_heading. For POST_OBSTACLE_TURN_DURATION
-    seconds, steers on gyro heading-hold alone (gyro_only_steer, no camera
-    term) at normal driving speed, then hands off to WALL_FOLLOW -- so this
-    turn is driven purely by the gyro instead of the blended wall-follow
-    steering every other turn path uses."""
+    """Entered from run_turning's matching-colour-obstacle-clear path. Steers on
+    gyro heading-hold alone for POST_OBSTACLE_TURN_DURATION seconds, then hands
+    off to WALL_FOLLOW."""
     global steering, speed, state
 
     steering = gyro_only_steer(gyro, desired_heading)
@@ -969,11 +804,8 @@ def run_post_obstacle_turn(gyro, cap):
 
 
 def run_reversing(gyro, cap):
-    """REVERSING's own logic: back up for 1 second at a fixed steering angle,
-    then hand back to AVOIDING_OBSTACLE to re-assess (matching the original
-    comment's intent -- not straight back to WALL_FOLLOW). No turn-line
-    detection during this second -- that's dropped here relative to the
-    original (which still counted, just didn't execute, turns while reversing)."""
+    """Backs up for 1 second at a fixed steering angle, then hands back to
+    AVOIDING_OBSTACLE to re-assess. No turn-line detection during this second."""
     global controller, steering, speed, state
 
     if time.time() - reversing_time < 1:
@@ -991,18 +823,14 @@ print("ENTERING THE WHILE LOOP")
 
 while True:
     cap = picam2.capture_array("main")     # latest camera frame
-    gyro = bno055.get_heading()            # latest raw heading (0-359 deg), or None if unavailable -- read
-                                            # here (not lower down) so OUT_PARKING can use it too
+    gyro = bno055.get_heading()            # latest raw heading (0-359 deg), or None if unavailable
 
-    branch = state  # snapshot before the if/elif/else below -- some branches (WALL_FOLLOW's
-                    # LINE_COUNT check, OUT_PARKING's own handoff) mutate `state` mid-iteration,
-                    # but SHOW_VID below must draw whatever THIS iteration actually computed,
-                    # not whatever `state` happens to read as by the time we get there.
+    branch = state  # snapshot before the if/elif/else below, since some branches mutate
+                    # `state` mid-iteration but SHOW_VID must draw what this iteration computed
 
     if state == State.OUT_PARKING:
-        # One-time manoeuvre, handled entirely separately from (and before) the normal
-        # wall-follow/obstacle logic below: find which black wall is closer and force a
-        # hard turn away from it -- max steering, opposite direction -- for 1 second.
+        # one-time manoeuvre: find which black wall is closer and force a hard turn
+        # away from it -- max steering, opposite direction -- for 1 second
         left_frame.update(cap)
         right_frame.update(cap)
         left_area, _ = left_frame.get_areas(left_frame.find_contours())
@@ -1018,11 +846,8 @@ while True:
         speed = 70
 
         if time.time() - out_parking_start >= 1.0:
-            # Minimum turn duration met -- before completing the manoeuvre, check for the
-            # matching-colour obstacle on the side we just turned into (RED when we turned
-            # right/away-from-left-wall, GREEN when we turned left/away-from-right-wall,
-            # same convention as the pending_turn veto below). Keep holding the turn until
-            # it clears instead of finishing straight into it.
+            # min turn duration met -- hold the turn until any obstacle on the side we
+            # turned into (same colour convention as the pending_turn veto) clears
             middle_frame.update(cap)
             red_contours, green_contours = middle_frame.find_contours()
             red_area, _ = middle_frame.get_areas(red_contours)
@@ -1044,15 +869,12 @@ while True:
         speed = 70  # every active driving phase below uses this; only the final hold overrides it
 
         if not park_square_filled:
-            # Watch a fixed point (195, 82) instead Qof averaging a square region -- once
-            # it reads black, the bay's back wall has been reached.
+            # watch a fixed point (195, 82) -- once it reads black, the bay's back wall is reached
             black_mask = cv2.inRange(parking_frame.hsv, black_range[0][0], black_range[0][1])
             if black_mask[82, 195]:
                 park_square_filled = True
 
         if not park_square_filled:
-            # Gyro-only straight-line hold, against the normal desired_heading (unchanged
-            # since the last line never calls turn()).
             steering = gyro_only_steer(gyro, desired_heading)
         elif not park_turned:
             if not park_turn_called:
@@ -1062,10 +884,8 @@ while True:
             if gyro is not None and abs(angle_error(gyro, desired_heading)) < 5:
                 park_turned = True
         elif not park_cleared:
-            # Watch a fixed point on screen -- once it reads black, it's time for the
-            # next (force) turn. (160, 62) for CCL; CWR uses (155, 30)
-            # instead, since the turn direction shifts where the relevant wall edge
-            # lands in frame.
+            # watch point for the next (force) turn -- (160, 62) for CCL, (155, 30) for CWR,
+            # since the turn direction shifts where the relevant wall edge lands in frame
             cleared_watch_point = (155, 30) if direction == "CWR" else (160, 62)
             watch_point_black_mask = cv2.inRange(parking_frame.hsv, black_range[0][0], black_range[0][1])
             if watch_point_black_mask[cleared_watch_point[1], cleared_watch_point[0]]:
@@ -1074,18 +894,13 @@ while True:
 
             steering = gyro_only_steer(gyro, desired_heading)
         elif STOP_AFTER_PARK_CLEARED:
-            # TEMPORARY: just hold here once cleared instead of continuing into the
-            # force turn -- everything below (force turn, final reverse, final turn)
-            # is left in place, untouched, just unreachable while this flag is True.
+            # TEMPORARY: hold here once cleared instead of continuing into the force turn.
             # Flip STOP_AFTER_PARK_CLEARED back to False to resume the rest of the sequence.
             steering = DEFAULT_STEER_ANGLE
             speed = 0
         elif not park_force_turn_done:
-            # Forced max turn away from the pink marker just passed (130=CWR/right,
-            # 50=CCL/left). Runs until the gyro shows a full 90 degrees of rotation
-            # from here, tracked via desired_heading (same turn() used for the
-            # initial bay-entry turn), uninterrupted -- obstacle check happens only
-            # once this completes, below.
+            # forced max turn away from the pink marker just passed (130=CWR/right, 50=CCL/left),
+            # runs until the gyro shows a full 90 deg of rotation
             if not park_force_turn_called:
                 turn(direction)
                 park_force_turn_called = True
@@ -1097,32 +912,25 @@ while True:
                 print(f"Force turn took {park_force_turn_duration:.3f}s")
  
         elif not park_final_reverse_done:
-            # Before committing to the straight-locked reverse, confirm desired_heading
-            # is actually still met (momentum/overshoot right after the force turn can
-            # leave it slightly off) -- hold here correcting via the gyro, still reversing
-            # (not forward), until it's back within 5 deg, same threshold the turns use.
+            # confirm desired_heading is still met (momentum/overshoot after the force
+            # turn can leave it slightly off) before committing to the straight reverse
             heading_confirmed = gyro is not None and abs(angle_error(gyro, desired_heading)) < 5
             if not heading_confirmed:
                 controller = "BWD"
-                # gyro_only_steer() is tuned for forward motion -- the same steering
-                # angle yaws the chassis the opposite way in reverse, so mirror its
-                # output around 90 (same compensation park_final_turn_done makes by
-                # inverting the target instead, since that phase uses a pinned value).
+                # gyro_only_steer() is tuned for forward motion -- mirror its output
+                # around 90 since the same steering angle yaws the opposite way in reverse
                 steering = 2 * DEFAULT_STEER_ANGLE - gyro_only_steer(gyro, desired_heading)
                 steering = max(45, min(135, steering))
             else:
-                # Whole-frame white detection -- only checked during this straight-reverse
-                # leg, not one of parking_frame's normal always-on groups.
+                # whole-frame white detection, only used during this straight-reverse leg
                 white_mask = cv2.inRange(parking_frame.hsv, white_range[0][0], white_range[0][1])
                 white_contours, _ = cv2.findContours(white_mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
                 if white_contours and SHOW_VID:
                     cv2.drawContours(parking_frame.frame, white_contours, -1, (255, 255, 255), 1)
 
                 if not park_final_reverse_started:
-                    # Hold here (heading confirmed, not yet reversing) until (151, 90) has
-                    # gone black then white -- white alone doesn't trigger the reverse until
-                    # black has been seen there first, so a point that's already white at
-                    # the start of this phase doesn't falsely trigger it immediately.
+                    # hold here until (151, 90) has gone black then white -- white alone
+                    # doesn't trigger the reverse until black has been seen there first
                     steering = DEFAULT_STEER_ANGLE
                     speed = 0
                     black_at_point = cv2.inRange(parking_frame.hsv, black_range[0][0], black_range[0][1])[90, 151]
@@ -1131,10 +939,7 @@ while True:
                     elif park_final_reverse_black_seen and white_mask[90, 151]:
                         park_final_reverse_started = True
                 else:
-                    # Reverse straight (steering locked at 90, not gyro-corrected) until the
-                    # ToF reads less than 450mm behind us -- no camera point for this one,
-                    # the ToF is the trigger.
-                    # -- ToF trigger disabled for now, see below.
+                    # reverse straight (steering locked at 90) -- ToF trigger disabled for now, see below
                     # tof_distance = get_tof_distance()
                     # if tof_distance is not None and tof_distance < 400:
                     #     park_final_reverse_done = True
@@ -1144,19 +949,14 @@ while True:
                     controller = "BWD"
                     steering = DEFAULT_STEER_ANGLE
 
-                    # For now: reverse until there's no black left at watch point (151, 122)
-                    # instead of the ToF trigger above.
+                    # for now: reverse until there's no black left at watch point (151, 122)
                     final_reverse_black_mask = cv2.inRange(parking_frame.hsv, black_range[0][0], black_range[0][1])
                     if not final_reverse_black_mask[122, 151]:
                         park_final_reverse_done = True
                         controller = "FWD"
         elif not park_final_turn_done:
-            # Forced max turn, reversing while turning -- runs until the gyro shows
-            # another 90 degrees of rotation from here. Inverted vs. every other turn()
-            # call in this maneuver: this closing turn swings back the opposite way
-            # (unwinding the force-turn just before it), which for CWR means turn("CCL")
-            # at steering=130. CCL now always mirrors CWR's own final turn here (same
-            # turn() call and steering) instead of mirroring itself.
+            # forced max turn, reversing while turning -- unwinds the force-turn (opposite
+            # direction), runs until the gyro shows another 90 deg of rotation
             if not park_final_turn_called:
                 turn("CCL")
                 park_final_turn_called = True
@@ -1166,24 +966,15 @@ while True:
                 park_final_turn_done = True
                 controller = "FWD"
         else:
-            # Final turn complete -- just hold here for now (park_force_turn_obstacle_done
-            # phase and the "fully complete, stop+break" ending are still disabled above).
+            # final turn complete -- hold here for now
             steering = DEFAULT_STEER_ANGLE
             speed = 0
 
-        # Once both pink markers have been seen, every phase's own speed choice is
-        # overridden to a flat 70 -- except the final "fully parked, stopped" branch
-        # above, which stays at 0 so the robot actually stops at the end.
-
     elif state == State.REVERSING:
-        # Let an in-progress proximity-safety backup finish its own window before
-        # anything else gets a look-in, even a pending turn.
+        # let an in-progress proximity-safety backup finish before anything else, even a pending turn
         run_reversing(gyro, cap)
     elif pending_turn:
-        # TURNING takes priority over WALL_FOLLOW/AVOIDING_OBSTACLE: as soon as a
-        # colour-line trips pending_turn, this branch runs instead of either of
-        # those every frame until the turn actually executes -- see
-        # run_turning()'s own docstring.
+        # TURNING takes priority over WALL_FOLLOW/AVOIDING_OBSTACLE once a colour line trips it
         state = State.TURNING
         run_turning(gyro, cap)
     elif state == State.POST_OBSTACLE_TURN:
@@ -1193,25 +984,21 @@ while True:
     elif state == State.AVOIDING_OBSTACLE:
         run_avoiding_obstacle(gyro, cap)
 
-    # Once either colour has been crossed LINE_COUNT times (checked regardless of which
-    # of the three states above just ran, matching the original), switch to IN_PARKING
-    # instead of continuing to drive. This assignment is the last word for this frame --
-    # any earlier state write above is overridden here, and every subsequent frame
-    # short-circuits into the IN_PARKING branch at the top of the loop before it can
-    # reach (and re-clobber) this point again.
+    # once either colour has been crossed LINE_COUNT times, switch to IN_PARKING --
+    # this overrides any state written above, and every later frame short-circuits
+    # into the IN_PARKING branch at the top of the loop
     if orange_count >= LINE_COUNT or blue_count >= LINE_COUNT:
         if state != State.IN_PARKING:
             print(f"LINE_COUNT reached ({orange_count} orange / {blue_count} blue) -- entering IN_PARKING")
             state = State.IN_PARKING
-            # Don't let this frame's already-computed steering (from above, before we
-            # knew the last line had just been reached) reach the robot -- no turning,
-            # no wall-follow steering, from this frame on.
+            # drop this frame's already-computed steering -- no turning/wall-follow from here on
             steering = DEFAULT_STEER_ANGLE
             speed = 0
 
     # ---- common epilogue: single send-gate + single SHOW_VID block for every state ----
 
     if abs(sent_steer - steering) >= 3 or speed != sent_speed or controller != sent_controller:
+        motor_control.driveMotor(speed * 2.54, controller)
         ser.write(f"{steering-5},{speed},{controller},{orange_count},open\n".encode())  # send steering+speed to the microcontroller each loop
         # ser.write(f"{steering-5},0,{controller},{orange_count},open\n".encode())  # send steering+speed to the microcontroller each loop
         sent_steer = steering
@@ -1239,14 +1026,9 @@ while True:
             cv2.putText(cap, f"direction={direction}", (10, 35),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1)
 
-            # gyro_only_steer() calculation breakdown, shown whenever it's the active
-            # steering source (park_square_filled wait, initial turn, cleared-watch, or
-            # the heading-confirmation hold before the final reverse -- not the pinned-
-            # max-steer force/final turns, and not the reverse itself, which locks
-            # straight at 90 once heading's confirmed). Reads the already-computed
-            # `steering`/`gyro_last_derivative` rather than calling gyro_only_steer()
-            # again here -- it's stateful (updates the prev-error/time used for the
-            # derivative as a side effect), so a second call would corrupt it.
+            # gyro_only_steer() breakdown, shown whenever it's the active steering source.
+            # Reads the already-computed `steering`/`gyro_last_derivative` instead of
+            # calling gyro_only_steer() again -- it's stateful, a second call would corrupt it.
             reverse_heading_unconfirmed = (park_force_turn_done and not park_final_reverse_done
                                             and gyro is not None
                                             and abs(angle_error(gyro, desired_heading)) >= 5)
@@ -1257,17 +1039,13 @@ while True:
                             f"gyro_only_steer={DEFAULT_STEER_ANGLE}-{KP_GYRO}*{gyro_error:.1f}-{KD_GYRO}*{gyro_last_derivative:.1f}={steering}",
                             (10, 170), cv2.FONT_HERSHEY_SIMPLEX, 0.32, (0, 255, 255), 1)
 
-            # ToF reading, shown only while it's actually driving the final-reverse
-            # trigger (once the force turn is done, before the reverse is done).
-            # -- not the active trigger right now (see final-reverse black-point watch
-            # below), still shown for reference.
+            # ToF reading, shown for reference (not the active trigger right now)
             if park_force_turn_done and not park_final_reverse_done:
                 cv2.putText(cap, f"tof_distance={get_tof_distance()} mm", (10, 130),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1)
 
-            # Watch point that starts the final reverse -- (151, 90) -- reverse holds here
-            # (speed 0) until this point has gone black then white. Red = hasn't seen black
-            # yet, yellow = black seen, waiting on white, green = white seen (about to trigger).
+            # watch point (151, 90): reverse holds here until black-then-white.
+            # red=no black yet, yellow=black seen, green=white seen (about to trigger)
             if park_force_turn_done and not park_final_reverse_done and not park_final_reverse_started:
                 final_reverse_start_black_hit = bool(
                     cv2.inRange(parking_frame.hsv, black_range[0][0], black_range[0][1])[90, 151])
@@ -1283,8 +1061,7 @@ while True:
                 cv2.putText(cap, "(151,90)", (157, 94),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.35, watch_colour, 1)
 
-            # Watch point for the final reverse -- (151, 122) -- reverse continues until
-            # this reads no black.
+            # watch point (151, 122): reverse continues until this reads no black
             if park_force_turn_done and not park_final_reverse_done and park_final_reverse_started:
                 final_reverse_watch_hit = bool(
                     cv2.inRange(parking_frame.hsv, black_range[0][0], black_range[0][1])[122, 151])
@@ -1292,8 +1069,7 @@ while True:
                 cv2.putText(cap, "(151,122)", (157, 126),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.35, (0, 255, 0) if final_reverse_watch_hit else (0, 0, 255), 1)
 
-            # Watch point for park_square_filled (195, 82) -- only shown while it's still
-            # relevant (before the square/point has been read as filled).
+            # watch point for park_square_filled (195, 82)
             if not park_square_filled:
                 square_watch_hit = bool(
                     cv2.inRange(parking_frame.hsv, black_range[0][0], black_range[0][1])[82, 195])
@@ -1301,9 +1077,7 @@ while True:
                 cv2.putText(cap, "(195,82)", (201, 86),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.35, (0, 255, 0) if square_watch_hit else (0, 0, 255), 1)
 
-            # Watch point for park_cleared -- (160, 62) for CCL, (155, 30) for CWR --
-            # shown for the whole run, not just once park_turned, so it's visible from
-            # the start instead of appearing late.
+            # watch point for park_cleared -- (160, 62) for CCL, (155, 30) for CWR
             if not park_cleared:
                 overlay_cleared_point = (155, 30) if direction == "CWR" else (160, 62)
                 cleared_watch_hit = bool(
@@ -1314,14 +1088,12 @@ while True:
                             (overlay_cleared_point[0] + 6, overlay_cleared_point[1] + 4),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.35, (0, 255, 0) if cleared_watch_hit else (0, 0, 255), 1)
 
-            # Bounding rect around each pink marker (should be two of them).
+            # bounding rect around each pink marker (should be two of them)
             for c in magenta_contours:
                 if cv2.contourArea(c) > 50:
                     mx, my, mw, mh = cv2.boundingRect(c)
                     cv2.rectangle(cap, (mx, my), (mx + mw, my + mh), (255, 0, 255), 2)
 
-            # Wall point tracked for the keep-straight steering above, and the reference
-            # x it's being held against.
             if wall_x is not None:
                 cv2.circle(cap, (wall_x, PARK_SQUARE_CENTER_Y), 6, (0, 0, 0), -1)
                 cv2.circle(cap, (wall_x, PARK_SQUARE_CENTER_Y), 4, (0, 255, 255), -1)
@@ -1349,15 +1121,13 @@ while True:
                         cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 0), 1)
 
         else:
-            # ROI borders, drawn last (not in Frame.update()) so they can't bleed into
-            # another Frame's crop earlier in the loop and split a straddling obstacle
-            # into two contours -- see Frame.draw_roi().
+            # ROI borders, drawn last so they can't bleed into another Frame's crop earlier
+            # in the loop and split a straddling obstacle into two contours
             left_frame.draw_roi(cap)
             right_frame.draw_roi(cap)
             bottom_frame.draw_roi(cap)
             middle_frame.draw_roi(cap)
 
-            # Overlay debug info (steering angle, line counts, FPS) on the preview frame.
             cv2.putText(cap, f"obs_on_screen={obs_on_screen} color={obstacle_color}", (10, 15),
                         cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 1)
             cv2.putText(cap, f"Steer: {steering:.2f}", (100, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255,255,255), 1)
@@ -1392,7 +1162,7 @@ while True:
         ser.flush()
         break
 
-
+motor_control.stopMotor()
 ser.write(f"90,0,STOP,0,stop\n".encode())
 ser.close()
 
