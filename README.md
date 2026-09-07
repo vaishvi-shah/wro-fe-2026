@@ -1266,6 +1266,8 @@ WALL_FOLLOW
 
 The position check provided a reliable way to confirm that the robot had moved beside the obstacle before returning to normal wall following.
 
+https://github.com/user-attachments/assets/5943b1fa-faef-4a36-b9d3-321f097391a8
+
 ---
 
 # Iteration Comparison
