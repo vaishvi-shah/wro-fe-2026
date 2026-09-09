@@ -27,6 +27,7 @@ Core idea:
 
 
 # imports!
+import os
 import cv2
 import numpy as np
 from picamera2 import Picamera2
@@ -42,14 +43,17 @@ bno055.initialize()            # boot the IMU over I2C
 sensor = bno055.sensor
 bno055.load_calibration()      # apply saved accel/gyro/mag offsets if present
 controller = "FWD"
-sent_steer = 0
-sent_speed = None    # last speed actually sent -- a phase/state transition that changes speed or
-sent_controller = None  # controller (e.g. FWD->BWD) without also moving steering by >=3 must still
-                        # resend, or the robot keeps executing whatever was last physically sent
-SHOW_VID = True                 # toggle live OpenCV preview window
-DEFAULT_STEER_ANGLE = 100        # neutral/straight steering angle
+sent_message = ""
+# sent_steer = 0
+# sent_speed = None    # last speed actually sent -- a phase/state transition that changes speed or
+# sent_controller = None  # controller (e.g. FWD->BWD) without also moving steering by >=3 must still
+#                         # resend, or the robot keeps executing whatever was last physically sent
+SHOW_VID = os.environ.get("SHOW_VID", "1") != "0"  # toggle live OpenCV preview window --
+                                                    # defaults on when run directly; run.py
+                                                    # sets SHOW_VID=0 to disable it via subprocess
+DEFAULT_STEER_ANGLE = 82        # neutral/straight steering angle
 LINE_COUNT = 12                # number of colour-line crossings before stopping
-SAFE_TURN_AREA = 3000           # max black area on the sid of a turn before we can safely execute the turn
+SAFE_TURN_AREA = 500           # max black area on the sid of a turn before we can safely execute the turn
 KP = 0.05       # camera proportional gain (wall pixel area difference)
 KD = 0.001      # (unused currently, reserved for derivative term)
 KP_GYRO = 0.5   # gyro proportional gain (heading error in degrees)
@@ -59,7 +63,7 @@ ser = serial.Serial('/dev/ttyACM0', 115200, timeout=1)  # serial link to the ste
 time.sleep(2)  # let the serial connection settle before writing
 steering = DEFAULT_STEER_ANGLE
 stop = False
-speed = 80
+speed = 100
 pending_turn = False  # true if a turn is pending (colour line seen, but not yet executed)
 
 
@@ -200,9 +204,9 @@ def navigate_wall(gyro_heading, desired_heading=0):
 
     return int(steering_value)
 
-
+if SHOW_VID:
 # execution of main program
-cv2.startWindowThread()  # needed so cv2.imshow updates without blocking on this thread
+    cv2.startWindowThread()  # needed so cv2.imshow updates without blocking on this thread
 
 
 # initializing the camera
@@ -304,14 +308,21 @@ while True:
         stop = True
    
     if stop:
-        if time.time() - stop_time > 2:
+        if time.time() - stop_time > 1.5:
             speed = 0
             motor_control.stopMotor()
-            ser.write(f"{DEFAULT_STEER_ANGLE},0,STOP,0,test\n".encode())  # send the fixed stop command
+            ser.write(f"{DEFAULT_STEER_ANGLE},0,STOP\n".encode())  # send the fixed stop command
             ser.flush()
             break
 
+    message = f"{steering},{speed},{controller}\n"
 
+    if message != sent_message:
+        motor_control.driveMotor(speed * 2.54, controller)
+        ser.write(message.encode())  # send steering+speed to the microcontroller each loop
+        sent_message = message
+        ser.flush()
+        time.sleep(0.01)
 
 
     if (SHOW_VID):
@@ -340,25 +351,13 @@ while True:
 
         cv2.imshow("Video Frame", cap)
 
-
-
-    if abs(sent_steer - steering) >= 3 or speed != sent_speed or controller != sent_controller:
-        motor_control.driveMotor(speed * 2.54, controller)
-        ser.write(f"{steering-5},{speed},{controller},{LINE_COUNT},'test'\n".encode())  # send steering+speed to the microcontroller each loop
-        sent_steer = steering
-        sent_speed = speed
-        sent_controller = controller
-        ser.flush()
-    time.sleep(0.01)
-    # print(f"sent value: heading: {steering} speed: {speed}")
-    if cv2.waitKey(1) & 0xFF == ord('q'):  # manual quit key also sends the stop command
-        motor_control.stopMotor()
-        ser.write(f"{DEFAULT_STEER_ANGLE},0,STOP,0,test\n".encode())
-        ser.flush()
-        break
+        # print(f"sent value: heading: {steering} speed: {speed}")
+        if cv2.waitKey(1) & 0xFF == ord('q'):  # manual quit key also sends the stop command
+            break
 
 motor_control.stopMotor()
 ser.write(f"{DEFAULT_STEER_ANGLE},0,STOP,0,test\n".encode())
+ser.flush()
 ser.close()
        
 

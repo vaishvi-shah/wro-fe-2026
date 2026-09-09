@@ -22,17 +22,7 @@ class Frame:
         self.img = img
         self.x1, self.x2, self.y1, self.y2 = x1, x2, y1, y2
 
-        self.groups = []
-        for gi, group in enumerate(colour_range):
-            pairs = []
-            for ri, pair in enumerate(group):
-                if len(pair) != 2:
-                    raise ValueError(
-                        f"colour_range[{gi}][{ri}] must be [low, high], got "
-                        f"{pair!r} — check your range isn't double/under-nested"
-                    )
-                pairs.append((pair[0], pair[1]))
-            self.groups.append(pairs)
+        self.set_colour_range(colour_range)
 
         self.frame = 0
         self.mask = 0
@@ -44,6 +34,27 @@ class Frame:
         self.line_counter1 = 0
         self.line_counter2 = 0
         self.update(img)
+
+    def set_colour_range(self, colour_range):
+
+        # print("********* Color Range: ", colour_range)
+        """
+        Rebuilds self.groups from a fresh colour_range, same shape and
+        validation as the constructor's — use this to swap out the tracked
+        colours on an existing Frame instead of creating a new one.
+        """
+        groups = []
+        for gi, group in enumerate(colour_range):
+            pairs = []
+            for ri, pair in enumerate(group):
+                if len(pair) != 2:
+                    raise ValueError(
+                        f"colour_range[{gi}][{ri}] must be [low, high], got "
+                        f"{pair!r} — check your range isn't double/under-nested"
+                    )
+                pairs.append((pair[0], pair[1]))
+            groups.append(pairs)
+        self.groups = groups
 
     def update(self, img):
         self.frame = img[self.y1:self.y2, self.x1:self.x2]
@@ -63,7 +74,7 @@ class Frame:
         """
         cv2.rectangle(img, (self.x1, self.y1), (self.x2, self.y2), (255, 255, 255), 1)
 
-    def find_contours(self):
+    def find_contours(self, draw=True):
         """
         Finds contours for EVERY colour group given at init, in order.
         Each group's ranges are OR'd into one mask before finding contours
@@ -91,7 +102,7 @@ class Frame:
                 self.mask = mask
                 self.contours = contours
 
-            if contours:
+            if contours and draw:
                 cv2.drawContours(self.frame, contours, -1, (0, 255, 255), 1)  # Yellow (BGR)
 
             results.append(contours)
