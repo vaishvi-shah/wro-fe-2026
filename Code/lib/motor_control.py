@@ -297,11 +297,7 @@ def driveRotations(rotations, pwm, direction):
     motor.drive(pwm, direction)
 
     while abs(encoder.get_count() - start_count) < target_steps:
-        print(
-                f"PWM: {pwm:3d} | "
-                f"Dir: {direction:>8s} | "
-                f"Encoder: {encoder.get_count()}"
-            )
+        
         time.sleep(0.005)
 
     motor.stop()

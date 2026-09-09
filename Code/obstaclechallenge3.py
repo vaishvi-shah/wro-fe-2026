@@ -1049,10 +1049,10 @@ while True:
                 park_turned = True
         elif not park_cleared:
             # Watch a fixed point on screen -- once it reads black, it's time for the
-            # next (force) turn. (160, 62) for CCL; CWR uses (155, 30)
-            # instead, since the turn direction shifts where the relevant wall edge
-            # lands in frame.
-            cleared_watch_point = (155, 30) if direction == "CWR" else (160, 62)
+            # next (force) turn. (160, 43) for CCL; CWR uses (155, 43) --
+            # same y on both sides, x shifts since the turn direction changes where
+            # the relevant wall edge lands in frame.
+            cleared_watch_point = (155, 43) if direction == "CWR" else (160, 43)
             watch_point_black_mask = cv2.inRange(parking_frame.hsv, black_range[0][0], black_range[0][1])
             if watch_point_black_mask[cleared_watch_point[1], cleared_watch_point[0]]:
                 park_cleared = True
@@ -1285,11 +1285,11 @@ while True:
                 cv2.putText(cap, "(195,82)", (201, 86),
                             cv2.FONT_HERSHEY_SIMPLEX, 0.35, (0, 255, 0) if square_watch_hit else (0, 0, 255), 1)
 
-            # Watch point for park_cleared -- (160, 62) for CCL, (155, 30) for CWR --
+            # Watch point for park_cleared -- (160, 43) for CCL, (155, 43) for CWR --
             # shown for the whole run, not just once park_turned, so it's visible from
             # the start instead of appearing late.
             if not park_cleared:
-                overlay_cleared_point = (155, 30) if direction == "CWR" else (160, 62)
+                overlay_cleared_point = (155, 43) if direction == "CWR" else (160, 43)
                 cleared_watch_hit = bool(
                     cv2.inRange(parking_frame.hsv, black_range[0][0], black_range[0][1])
                     [overlay_cleared_point[1], overlay_cleared_point[0]])

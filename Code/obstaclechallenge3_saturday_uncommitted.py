@@ -896,11 +896,28 @@ def run_reversing(gyro, cap):
         state = State.AVOIDING_OBSTACLE  # re-assess the obstacle next frame, don't jump straight to WALL_FOLLOW
 
 
+start = True
+run = False
 
-print("ENTERING THE WHILE LOOP")
+ser.write(("OBSTACLE Ready\n").encode())
+ser.flush()
 
+while start:
+    line = ser.readline().decode().strip()
+    # print(line)
 
-while True:
+    if line:
+
+        print("Pico Commands:", line)
+
+        if line == "run":
+            start = False
+            run = True
+            SHOW_VID = False
+
+print("Batmobile starting... Vroom Vroom Vroom")
+
+while run:
     cap = picam2.capture_array("main")     # latest camera frame
     gyro = bno055.get_heading()            # latest raw heading (0-359 deg), or None if unavailable -- read
                                             # here (not lower down) so OUT_PARKING can use it too

@@ -8,11 +8,11 @@ time.sleep(2)
 print("READY")
 
 open_commands = [
-    "85,1024,BWD,9,open"
-    # "45,800,BWD,10,open",
-    # "90,600,BWD,12,open",
-    # "135,400,BQWD,15,open",
-    # "150,0,STOP,0,open"
+    "85,1024,BWD"
+    "60,800,BWD",
+    "45,600,BWD",
+    "60,400,BWD",
+    "85,0,STOP"
 ]
 
 obstacle_commands = [
@@ -23,53 +23,58 @@ obstacle_commands = [
     # "30,1024,FWD,9,obstacle"
 ]
 
-open_commands = []
-
 stop_command = "90,0,STOP,0,stop"
 
 while True:
 
-    line = ser.readline().decode().strip()
+    for command in open_commands:
+        print("Sending:", command)
+        ser.write((command + "\n").encode())
+        ser.flush()
+        
+        time.sleep(0.05)
+
+    # line = ser.readline().decode().strip()
 
 
-    if line:
+    # if line:
 
-        print("RX FROM PICO:", line)
+    #     print("RX FROM PICO:", line)
 
-        if line == "Open":
+    #     if line == "Open":
 
-         print("\n--- AUTOMATIC COMMAND MODE ---")
+    #      print("\n--- AUTOMATIC COMMAND MODE ---")
 
-         for command in open_commands:
-            print("Sending:", command)
-            ser.write((command + "\n").encode())
+    #      for command in open_commands:
+    #         print("Sending:", command)
+    #         ser.write((command + "\n").encode())
          
-            time.sleep(1)
+    #         time.sleep(1)
 
         
 
 
-        elif line == "Obstacle":
+    #     elif line == "Obstacle":
 
-            print("\n--- AUTOMATIC COMMAND MODE ---")
+    #         print("\n--- AUTOMATIC COMMAND MODE ---")
 
-            for command in obstacle_commands:
-                print("Sending:", command)
-                ser.write((command + "\n").encode())
+    #         for command in obstacle_commands:
+    #             print("Sending:", command)
+    #             ser.write((command + "\n").encode())
          
-                time.sleep(1)
+    #             time.sleep(1)
 
         
 
-        elif line == "Stop":
+    #     elif line == "Stop":
 
-            print("\n--- AUTOMATIC COMMAND MODE ---")
+    #         print("\n--- AUTOMATIC COMMAND MODE ---")
 
            
-            print("Sending:", stop_command)
-            ser.write((stop_command + "\n").encode())
+    #         print("Sending:", stop_command)
+    #         ser.write((stop_command + "\n").encode())
 
-            time.sleep(1)
+    #         time.sleep(1)
          
 
         
