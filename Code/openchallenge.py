@@ -223,10 +223,28 @@ left_frame = Frame(cap, 0, 20, 60, 200, colour_range=[black_range])
 right_frame = Frame(cap, 300, 320, 60, 200, colour_range=[black_range])
 bottom_frame = Frame(cap, 100, 220, 200, 240, colour_range=[blue_range, orange_range])
 
-print("ENTERING THE WHILE LOOP")
+start = True
+run = False
 
+ser.write(("OPEN Ready\n").encode())
+ser.flush()
 
-while True:
+while start:
+    line = ser.readline().decode().strip()
+    # print(line)
+
+    if line:
+
+        print("Pico Commands:", line)
+
+        if line == "run":
+            start = False
+            run = True
+            SHOW_VID= False
+
+print("Batmobile starting... Vroom Vroom")
+
+while run:
     cap = picam2.capture_array("main")     # latest camera frame
     gyro = bno055.get_heading()            # latest raw heading (0-359 deg), or None if unavailable
     steering = navigate_wall(gyro, desired_heading)  # blended gyro+camera steering
